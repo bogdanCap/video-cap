@@ -1,0 +1,51 @@
+# Compiled binaries and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binaries
+*.test
+
+# Code coverage profiles and test artifacts
+*.out
+*.coverprofile
+profile.cov
+coverage.*
+
+# Go workspace files
+go.work
+go.work.sum
+
+# Dependency directories 
+# (Uncomment the line below if you do NOT want to commit your vendor folder)
+# vendor/
+
+# Environment configuration files
+.env
+.env.*
+*.local
+
+# IDE and Editor specific files
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Visual Studio Code local settings and history
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/code-workspace
+
+# Local history plugin records
+.history/
+
+# Built-in crash diagnostics
+*.code-workspace
