@@ -49,3 +49,5 @@ go.work.sum
 
 # Built-in crash diagnostics
 *.code-workspace
+
+recordings/

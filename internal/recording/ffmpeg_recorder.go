@@ -71,6 +71,47 @@ func (r *FFmpegRecorder) startChunk() error {
 		),
 	)
 
+	//this is for face detection mode
+	cmd := exec.Command(
+		"ffmpeg",
+		"-y",
+
+		// Input is a sequence of MJPEG/JPEG frames.
+		"-f", "mjpeg",
+		"-framerate", fmt.Sprintf("%d", r.fps),
+		"-i", "pipe:0",
+
+		// Video encoding.
+		"-c:v", "libx264",
+		"-preset", "veryfast",
+		"-pix_fmt", "yuv420p",
+
+		filename,
+	)
+
+
+	/*
+	cmd := exec.Command(
+		"ffmpeg",
+
+		"-y",
+
+		"-f", "mjpeg",
+		"-framerate", fmt.Sprintf("%d", r.fps),
+
+		"-i", "pipe:0",
+
+		"-c:v", "libx264",
+		"-preset", "veryfast",
+		"-pix_fmt", "yuv420p",
+
+		"-movflags", "+faststart",
+
+		filename,
+	)
+	*/
+
+	/* 
 	cmd := exec.Command(
 		"ffmpeg",
 
@@ -104,7 +145,7 @@ func (r *FFmpegRecorder) startChunk() error {
 		"-movflags", "+faststart",
 
 		filename,
-	)
+	)*/
 
 	input, err := cmd.StdinPipe()
 	if err != nil {
@@ -114,6 +155,7 @@ func (r *FFmpegRecorder) startChunk() error {
 		)
 	}
 
+	//TODO check without this 2 line
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 

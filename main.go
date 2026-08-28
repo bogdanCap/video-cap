@@ -20,6 +20,8 @@ const (
 	cameraDevice = "/dev/video0"
 
 	// Camera configuration.
+	//cameraWidth = 2560
+	//cameraHeight = 1440
 	cameraWidth  = 1920
 	cameraHeight = 1080
 	cameraFPS    = 30
@@ -62,7 +64,10 @@ func main() {
 
 	detector, err := detection.NewFaceDetector(
 		cascadePath,
+		cameraWidth,
+		cameraHeight,
 	)
+
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -205,8 +210,8 @@ func main() {
 			)
 
 			stopChan = make(chan struct{})
-
 			running = true
+			faceDetectionEnabled := true
 
 			//mu.Unlock()
 
@@ -217,6 +222,7 @@ func main() {
 				videoPreview,
 				recorder,
 				stopChan,
+				faceDetectionEnabled,
 			)
 
 			startStopButton.SetText(
@@ -272,6 +278,7 @@ func processFrames(
 	preview *preview.FynePreview,
 	recorder recording.Recorder,
 	stopChan <-chan struct{},
+	faceDetectionEnabled bool,
 ) {
 
 	log.Println(
@@ -313,11 +320,14 @@ func processFrames(
 			continue
 		}
 
+		frameToUse := frame
+
 		// ====================================
 		// Detect faces
 		// ====================================
-	
-		if frameNumber%5 == 0 {
+		if faceDetectionEnabled && 
+			detector != nil &&
+			frameNumber%5 == 0 {
 
 			faces, err := detector.Detect(frame)
 
@@ -329,14 +339,17 @@ func processFrames(
 			}
 		}
 
-		// Draw the last detected face.
-		frameWithFaces, err := detector.DrawFaces(
-			frame,
-			lastFaces,
-		)
-		if err != nil {
-			log.Println("draw faces:", err)
-			continue
+		if faceDetectionEnabled && detector != nil && len(lastFaces) > 0 {
+			// Draw the last detected face.
+			frameToUse, err = detector.DrawFaces(
+				frame,
+				lastFaces,
+			)
+
+			if err != nil {
+				log.Println("draw faces:", err)
+				continue
+			}
 		}
 
 		/*
@@ -357,19 +370,18 @@ func processFrames(
 		// ------------------------------------
 		// Send frame to Fyne - preview
 		// ------------------------------------
-
-		if err := preview.ShowFrame(frameWithFaces); err != nil {
+		if err := preview.ShowFrame(frameToUse); err != nil {
 			log.Println(
 				"preview:",
 				err,
 			)
 		}
+		
 
 		// ------------------------------------
 		// Send frame to FFmpeg - to save
 		// ------------------------------------
-
-		if err := recorder.WriteFrame(frameWithFaces); err != nil {
+		if err := recorder.WriteFrame(frameToUse); err != nil {
 			log.Println(
 				"recorder:",
 				err,

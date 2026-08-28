@@ -58,6 +58,7 @@ func (p *FynePreview) ShowFrame(
 	fyne.Do(func() {
 		p.image.Image = img
 
+		//TODO check fithout this line
 		p.image.Resize(
 			p.container.Size(),
 		)

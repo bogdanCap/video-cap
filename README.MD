@@ -36,7 +36,20 @@ run:
 
 
 
+Debug video:
+    video fpv:
+        ffprobe -v error \
+        -show_entries format=duration \
+        -show_entries stream=avg_frame_rate,r_frame_rate \
+        -of default=noprint_wrappers=1 \
+        video.mp4
 
+Debug delay:
+    start := time.Now()
+    log.Printf(
+		"DrawFaces took: %v",
+		time.Since(start),
+	)
 
 
 USB Camera

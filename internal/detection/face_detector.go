@@ -10,9 +10,18 @@ import (
 
 type FaceDetector struct {
 	classifier gocv.CascadeClassifier
+	detectionWidth  int
+	detectionHeight int
+
+	sourceWidth  int
+	sourceHeight int
 }
 
-func NewFaceDetector(cascadePath string) (*FaceDetector, error) {
+func NewFaceDetector(
+	cascadePath string,
+	sourceWidth int,
+	sourceHeight int,
+) (*FaceDetector, error) {
 	classifier := gocv.NewCascadeClassifier()
 
 	if !classifier.Load(cascadePath) {
@@ -26,6 +35,12 @@ func NewFaceDetector(cascadePath string) (*FaceDetector, error) {
 
 	return &FaceDetector{
 		classifier: classifier,
+		//TODO move hardcode outside into const
+		detectionWidth:  640,
+		detectionHeight: 360,
+
+		sourceWidth:  sourceWidth,
+		sourceHeight: sourceHeight,
 	}, nil
 }
 
@@ -51,12 +66,30 @@ func (d *FaceDetector) Detect(frame []byte) ([]Face, error) {
 		)
 	}
 
+	// Resize for face detection.
+	small := gocv.NewMat()
+	defer small.Close()
+
+	gocv.Resize(
+		mat,
+		&small,
+		image.Pt(
+			d.detectionWidth,
+			d.detectionHeight,
+		),
+		0,
+		0,
+		gocv.InterpolationLinear,
+	)
+	////
+
 	// Convert BGR -> grayscale.
 	gray := gocv.NewMat()
 	defer gray.Close()
 
 	gocv.CvtColor(
-		mat,
+		small,
+		//mat,
 		&gray,
 		gocv.ColorBGRToGray,
 	)
@@ -99,8 +132,47 @@ func (d *FaceDetector) Detect(frame []byte) ([]Face, error) {
 	}
 
 	// Only one face.
-	rect := rects[0]
+	firstRect := rects[0]
+	var largestFace image.Rectangle
 
+	//rects[1:] - Create a new slice omitting the first element
+	for _, rect := range rects[1:] {
+
+		if rect.Dx()*rect.Dy() > firstRect.Dx()*firstRect.Dy() {
+
+			largestFace = rect
+		}
+	}
+
+	// Convert 640x360 coordinates
+	// back to 2560x1440 coordinates.
+	scaleX := float64(d.sourceWidth) /
+		float64(d.detectionWidth)
+
+	scaleY := float64(d.sourceHeight) /
+		float64(d.detectionHeight)
+
+	return []Face{
+		{
+			X: int(
+				float64(largestFace.Min.X) * scaleX,
+			),
+
+			Y: int(
+				float64(largestFace.Min.Y) * scaleY,
+			),
+
+			Width: int(
+				float64(largestFace.Dx()) * scaleX,
+			),
+
+			Height: int(
+				float64(largestFace.Dy()) * scaleY,
+			),
+		},
+	}, nil
+
+	/*
 	return []Face{
 		{
 			X:      rect.Min.X,
@@ -108,7 +180,7 @@ func (d *FaceDetector) Detect(frame []byte) ([]Face, error) {
 			Width:  rect.Dx(),
 			Height: rect.Dy(),
 		},
-	}, nil
+	}, nil*/
 }
 
 func (d *FaceDetector) DrawFaces(
