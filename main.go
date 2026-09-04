@@ -4,6 +4,7 @@ import (
 	"log"
 	"time"
 	//"sync"
+	//"image"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -37,6 +38,8 @@ const (
 	chunkDuration = 30 * time.Second
 
 	cascadePath = "model/haarcascade_frontalface_default.xml"
+
+	frameBufferSize = 2
 )
 
 func main() {
@@ -93,6 +96,23 @@ func main() {
 		recordingHeight,
 		cameraFPS,
 		chunkDuration,
+	)
+
+	// --------------------------------------------------
+	// Channels
+	// --------------------------------------------------
+
+	previewChan := make(chan []byte, frameBufferSize)
+	recordingChan := make(chan []byte, frameBufferSize)
+
+	// --------------------------------------------------
+	// Start processing consumers (listening face detection and recording channel)
+	// --------------------------------------------------
+	startProcessing(
+		previewChan,
+		recordingChan,
+		videoPreview,
+		recorder,
 	)
 
 	// ----------------------------------------
@@ -200,7 +220,6 @@ func main() {
 
 				_ = cam.Stop()
 
-				//mu.Unlock()
 
 				return
 			}
@@ -209,20 +228,22 @@ func main() {
 				"Recorder started",
 			)
 
-			stopChan = make(chan struct{})
+			//stopChan = make(chan struct{})
 			running = true
-			faceDetectionEnabled := true
+			//faceDetectionEnabled := true
+
+			// Create stop channel for this session.
+			stopChan = make(chan struct{})
 
 			//mu.Unlock()
 
 			// Start frame processing.
-			go processFrames(
+			go runCamera(
 				cam,
 				detector,
-				videoPreview,
-				recorder,
+				previewChan,
+				recordingChan,
 				stopChan,
-				faceDetectionEnabled,
 			)
 
 			startStopButton.SetText(
@@ -267,128 +288,195 @@ func main() {
 	myWindow.ShowAndRun()
 }
 
-// processFrames continuously reads frames
-// from the camera and sends each frame to:
+
+// runCamera is the producer.
 //
-// 1. Fyne preview
-// 2. FFmpeg recorder
-func processFrames(
+// It:
+//   - reads frames from the camera
+//   - processes the frame
+//   - sends the processed frame to preview
+//   - sends the processed frame to recording
+//
+// There are no goroutines here.
+func runCamera(
 	cam camera.Camera,
 	detector detection.Detector,
-	preview *preview.FynePreview,
-	recorder recording.Recorder,
+	previewChan chan<- []byte,
+	recordingChan chan<- []byte,
 	stopChan <-chan struct{},
-	faceDetectionEnabled bool,
 ) {
-
-	log.Println(
-		"Frame processing started",
-	)
-
-	frameNumber := 0
+	var frameNumber int
 
 	var lastFaces []detection.Face
 
 	for {
+		// ----------------------------------------
+		// Check stop signal to stop recording
+		// ----------------------------------------
 
-		// Check stop signal.
 		select {
-
 		case <-stopChan:
-
-			log.Println(
-				"Frame processing stopped",
-			)
-
 			return
 
 		default:
 		}
 
-		// ------------------------------------
-		// Read ONE frame
-		// ------------------------------------
+		// --------------------------------------------------
+		// Read frame
+		// --------------------------------------------------
 
 		frame, err := cam.Read()
-
 		if err != nil {
-			log.Println(
-				"camera read:",
-				err,
-			)
+			log.Println("camera read:", err)
 
-			continue
+			return
 		}
 
-		frameToUse := frame
+		frameNumber++
 
-		// ====================================
-		// Detect faces
-		// ====================================
-		if faceDetectionEnabled && 
-			detector != nil &&
-			frameNumber%5 == 0 {
+		// --------------------------------------------------
+		// Process frame
+		// --------------------------------------------------
 
-			faces, err := detector.Detect(frame)
-
-			if err != nil {
-				log.Println("face detection:", err)
-			} else {
-				// Save the latest detection.
-				lastFaces = faces
-			}
-		}
-
-		if faceDetectionEnabled && detector != nil && len(lastFaces) > 0 {
-			// Draw the last detected face.
-			frameToUse, err = detector.DrawFaces(
-				frame,
-				lastFaces,
-			)
-
-			if err != nil {
-				log.Println("draw faces:", err)
-				continue
-			}
-		}
-
-		/*
-		faces, err := detector.Detect(
+		frame, lastFaces = processFrames(
 			frame,
+			frameNumber,
+			lastFaces,
+			detector,
+			true,
 		)
 
-		if err != nil {
+		// --------------------------------------------------
+		// Send frame to consumers
+		// --------------------------------------------------
 
-			log.Println(
-				"face detection:",
-				err,
-			)
+		//previewChan <- frame
+		//recordingChan <- frame
+		// ----------------------------------------
+		// Preview
+		// ----------------------------------------
 
-			continue
-		}*/
+		// Preview must never block camera.
+		//
+		// If Fyne is busy, simply drop this frame.
+		select {
 
-		// ------------------------------------
-		// Send frame to Fyne - preview
-		// ------------------------------------
-		if err := preview.ShowFrame(frameToUse); err != nil {
-			log.Println(
-				"preview:",
-				err,
-			)
-		}
-		
+		case previewChan <- frame:
 
-		// ------------------------------------
-		// Send frame to FFmpeg - to save
-		// ------------------------------------
-		if err := recorder.WriteFrame(frameToUse); err != nil {
-			log.Println(
-				"recorder:",
-				err,
-			)
+		default:
+			// Preview is busy.
+			// Drop frame.
 		}
 
-		//iterate frames
-		frameNumber++
+		// ----------------------------------------
+		// Recording
+		// ----------------------------------------
+
+		// Recording should not randomly drop frames.
+		select {
+
+		case recordingChan <- frame:
+
+		case <-stopChan:
+			return
+		}
 	}
+}
+
+
+
+// processFrames contains all face detection
+// and drawing logic.
+func processFrames(
+	frame []byte,
+	frameNumber int,
+	lastFaces []detection.Face,
+	detector detection.Detector,
+	faceDetectionEnabled bool,
+) ([]byte, []detection.Face) {
+
+	if !faceDetectionEnabled {
+		return frame, nil
+	}
+
+	// --------------------------------------------------
+	// Detect face every 5th frame
+	// --------------------------------------------------
+
+	if frameNumber%5 == 0 {
+		faces, err := detector.Detect(frame)
+		if err != nil {
+			log.Println("face detection:", err)
+
+			return frame, lastFaces
+		}
+
+		// We only need one face.
+		if len(faces) > 0 {
+			lastFaces = faces[:1]
+			// Remember the new rectangle.
+			//face := faces[0]
+			//lastFace = &face
+		} else {
+			lastFaces = nil
+		}
+	}
+
+	// --------------------------------------------------
+	// Draw face
+	// --------------------------------------------------
+
+	//if lastFace != nil {
+	if len(lastFaces) > 0 {
+		processedFrame, err := detector.DrawFaces(
+			frame,
+			lastFaces,
+		)
+		//save last detection rectangles
+		//processedFrame, err := detector.DrawFaces(
+		//	frame,
+		//	[]detection.Face{*lastFace},
+		//)
+		if err != nil {
+			log.Println("draw faces:", err)
+
+			return frame, lastFaces
+		}
+
+		frame = processedFrame
+	}
+
+	return frame, lastFaces
+}
+
+
+func startProcessing(
+	previewChan <-chan []byte,
+	recordingChan <-chan []byte,
+	videoPreview *preview.FynePreview,
+	recorder recording.Recorder,
+) {
+	// --------------------------------------------------
+	// Preview consumer
+	// --------------------------------------------------
+
+	go func() {
+		for frame := range previewChan {
+			if err := videoPreview.ShowFrame(frame); err != nil {
+				log.Println("preview:", err)
+			}
+		}
+	}()
+
+	// --------------------------------------------------
+	// Recording consumer
+	// --------------------------------------------------
+
+	go func() {
+		for frame := range recordingChan {
+			if err := recorder.WriteFrame(frame); err != nil {
+				log.Println("recording:", err)
+			}
+		}
+	}()
 }
