@@ -2,7 +2,7 @@ package camera
 
 // Camera describes a camera capable of streaming frames.
 type Camera interface {
-	Start() error
+	//Start() error
 	Read() ([]byte, error)
 	Stop() error
 	Close() error
