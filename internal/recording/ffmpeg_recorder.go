@@ -190,12 +190,12 @@ func (r *FFmpegRecorder) WriteFrame(
 		)
 	}
 
+
 	_, err := r.input.Write(frame)
+	
+
 	if err != nil {
-		return fmt.Errorf(
-			"write frame to ffmpeg: %w",
-			err,
-		)
+		return fmt.Errorf("write frame to ffmpeg: %w", err)
 	}
 
 	if time.Since(r.chunkStart) >= r.chunkDuration {

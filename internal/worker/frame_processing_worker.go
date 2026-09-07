@@ -3,10 +3,15 @@ package worker
 import (
 	"context"
 	"log"
+	"time"
 
 	"video/internal/preview"
 	"video/internal/recording"
 )
+
+const previewTimeout = 100 * time.Millisecond
+const recordingTimeout = 40 * time.Millisecond
+
 
 type FrameProcessingWorker struct {
 	preview  *preview.FynePreview
@@ -62,7 +67,6 @@ func (w *FrameProcessingWorker) Process(
 	case <-ctx.Done():
 		return
 	}
-	//w.recordingChan <- frame
 }
 
 func (w *FrameProcessingWorker) previewWorker(
@@ -74,10 +78,42 @@ func (w *FrameProcessingWorker) previewWorker(
 			log.Println("preview worker stopped")
 			return
 
-		case frame := <-w.previewChan:
+		case frame, ok := <-w.previewChan:
+			if !ok {
+				return
+			}
+
+			done := make(chan error, 1)
+
+			// Run ShowFrame in another goroutine - this needed for timeout - if ShowFrame freez - code continue to work.
+			go func() {
+				done <- w.preview.ShowFrame(frame)
+			}()
+
+			timer := time.NewTimer(previewTimeout)
+
+			select {
+			case err := <-done:
+				timer.Stop()
+
+				if err != nil {
+					log.Println("preview:", err)
+				}
+
+			case <-timer.C:
+				log.Println("preview timeout - skip current job")
+
+				// Do not wait for ShowFrame().
+				// Continue the for loop and receive the next frame.
+
+			case <-ctx.Done():
+				timer.Stop()
+				return
+			}
+			/*
 			if err := w.preview.ShowFrame(frame); err != nil {
 				log.Println("preview:", err)
-			}
+			}*/
 		}
 	}
 }
@@ -85,6 +121,7 @@ func (w *FrameProcessingWorker) previewWorker(
 func (w *FrameProcessingWorker) recordingWorker(
 	ctx context.Context,
 ) {
+	/*
 	for {
 		select {
 		case <-ctx.Done():
@@ -94,6 +131,67 @@ func (w *FrameProcessingWorker) recordingWorker(
 		case frame := <-w.recordingChan:
 			if err := w.recorder.WriteFrame(frame); err != nil {
 				log.Println("recording:", err)
+			}
+			
+		}
+	}*/
+	
+	for {
+		select {
+		case <-ctx.Done():
+			log.Println("stopping recording worker...")
+
+			// Process all frames that are already
+			// waiting in recordingChan.
+			for {
+				select {
+				case frame := <-w.recordingChan:
+					if err := w.recorder.WriteFrame(frame); err != nil {
+						log.Println("recording:", err)
+					}
+
+				default:
+					log.Println("recording worker stopped")
+					return
+				}
+			}
+
+		//case frame := <-w.recordingChan:
+		//	if err := w.recorder.WriteFrame(jobCtx, frame); err != nil {
+		//		log.Println("recording:", err)
+		//	}
+		//}
+		case frame, ok := <-w.recordingChan:
+			if !ok {
+				return
+			}
+
+			done := make(chan error, 1)
+
+			// Run WriteFrame in another goroutine, this needed for timeout - if ShowFrame freez - code continue to work.
+			go func() {
+				done <- w.recorder.WriteFrame(frame)
+			}()
+
+			timer := time.NewTimer(recordingTimeout)
+
+			select {
+			case err := <-done:
+				timer.Stop()
+
+				if err != nil {
+					log.Println("recording:", err)
+				}
+
+			case <-timer.C:
+				log.Println("recording timeout - skip current job")
+
+				// Do not wait for WriteFrame().
+				// Continue the for loop and receive the next frame.
+
+			case <-ctx.Done():
+				timer.Stop()
+				return
 			}
 		}
 	}

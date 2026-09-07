@@ -137,7 +137,6 @@ func main() {
 	// ----------------------------------------
 	// Start
 	// ----------------------------------------
-	//var startStopButton *widget.Button
 	startButton := widget.NewButton(
 		"Start Video",
 		func() {
@@ -161,8 +160,6 @@ func main() {
 			log.Println(
 				"Recorder started",
 			)
-
-			//running = true
 
 			ctx, cancel = context.WithCancel(
 				context.Background(),
@@ -216,15 +213,6 @@ func main() {
 			//running = false
 
 			log.Println("Camera stopped")
-
-			/*startStopButton.SetText(
-					"Start Video & Recording",
-				)
-
-				startStopButton.Importance =
-					widget.MediumImportance
-
-				startStopButton.Refresh()*/
 
 			myWindow.Close()
 		},
