@@ -22,6 +22,8 @@ type FrameProcessingWorker struct {
 	recordingChan chan []byte
 
 	wg sync.WaitGroup
+	//protect from - two goroutines could write to the same FFmpeg stdin at the same time.
+	recordingMu sync.Mutex
 }
 
 func NewFrameProcessingWorker(
@@ -136,12 +138,13 @@ func (w *FrameProcessingWorker) recordingWorker(
 	for {
 		select {
 		case <-ctx.Done():
+			//stop button (cancel) logic
 			// Process all frames that are already
 			// waiting in recordingChan.
 			for {
 				select {
 				case frame := <-w.recordingChan:
-					if err := w.recorder.WriteFrame(frame); err != nil {
+					if err := w.writeFrame(frame); err != nil {
 						log.Println("recording:", err)
 					}
 
@@ -160,7 +163,8 @@ func (w *FrameProcessingWorker) recordingWorker(
 
 			// Run WriteFrame in another goroutine, this needed for timeout - if ShowFrame freez - code continue to work.
 			go func() {
-				done <- w.recorder.WriteFrame(frame)
+				//done <- w.recorder.WriteFrame(frame)
+				done <- w.writeFrame(frame)
 			}()
 
 			timer := time.NewTimer(recordingTimeout)
@@ -187,4 +191,13 @@ func (w *FrameProcessingWorker) recordingWorker(
 			}
 		}
 	}
+}
+
+func (w *FrameProcessingWorker) writeFrame(frame []byte) error {
+	// Protect FFmpeg stdin from concurrent WriteFrame calls.
+	// protect from - two goroutines could write to the same FFmpeg stdin at the same time.
+	w.recordingMu.Lock()
+	defer w.recordingMu.Unlock()
+
+	return w.recorder.WriteFrame(frame)
 }
