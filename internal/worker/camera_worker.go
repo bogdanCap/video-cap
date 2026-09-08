@@ -3,14 +3,17 @@ package worker
 import (
 	"context"
 	"log"
+	"sync"
+
 
 	"video/internal/camera"
 	"video/internal/detection"
 )
 
 type CameraWorker struct {
-	cam      camera.Camera
+	cam camera.Camera
 	detector detection.Detector
+	wg sync.WaitGroup
 }
 
 func NewCameraWorker(
@@ -26,7 +29,10 @@ func NewCameraWorker(
 func (w *CameraWorker) Run(ctx context.Context) <-chan []byte {
 	frameChan := make(chan []byte, 30)
 
+	w.wg.Add(1)
+
 	go func() {
+		defer w.wg.Done()
 		defer close(frameChan)
 
 		var (
@@ -45,7 +51,15 @@ func (w *CameraWorker) Run(ctx context.Context) <-chan []byte {
 
 			frame, err := w.cam.Read()
 			if err != nil {
-				log.Println("camera read:", err)
+				//log.Println("camera read:", err)
+				// Camera can return an error because cam.Stop()
+				// was called during shutdown.
+				if ctx.Err() != nil {
+					log.Println("camera worker stopped")
+				} else {
+					log.Println("camera read:", err)
+				}
+
 				return
 			}
 
@@ -85,10 +99,16 @@ func (w *CameraWorker) Run(ctx context.Context) <-chan []byte {
 			case frameChan <- frame:
 
 			case <-ctx.Done():
+				log.Println("camera worker stopped")
+
 				return
 			}
 		}
 	}()
 
 	return frameChan
+}
+
+func (w *CameraWorker) Wait() {
+	w.wg.Wait()
 }

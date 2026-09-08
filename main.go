@@ -206,6 +206,17 @@ func main() {
 
 			_ = cam.Stop()
 
+			//todo wait when worker finished
+			// Wait for CameraWorker.
+			cameraWorker.Wait()
+
+			// FrameProcessingWorker now:
+			//
+			// - stops preview
+			// - drains recordingChan
+			// - waits for all WriteFrame() goroutines
+			frameProcessingWorker.Wait()
+
 			if err := recorder.Stop(); err != nil {
 				log.Println("recorder stop:", err)
 			}

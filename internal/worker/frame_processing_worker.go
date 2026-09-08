@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"time"
+	"sync"
 
 	"video/internal/preview"
 	"video/internal/recording"
@@ -19,6 +20,8 @@ type FrameProcessingWorker struct {
 
 	previewChan   chan []byte
 	recordingChan chan []byte
+
+	wg sync.WaitGroup
 }
 
 func NewFrameProcessingWorker(
@@ -30,22 +33,33 @@ func NewFrameProcessingWorker(
 		recorder: recorder,
 
 		// Small buffer because preview can drop frames.
-		previewChan: make(chan []byte, 2),
+		previewChan: make(chan []byte, 1),
 
 		// Larger buffer because recording must not drop frames.
 		recordingChan: make(chan []byte, 30),
+
 	}
 }
 
 func (w *FrameProcessingWorker) Run(ctx context.Context) {
+	w.wg.Add(2)
+	
 	go func() {
+		defer w.wg.Done()
+
 		w.previewWorker(ctx)
 	}()
 
 
 	go func() {
+		defer w.wg.Done()
+
 		w.recordingWorker(ctx)
 	}()
+}
+
+func (w *FrameProcessingWorker) Wait() {
+	w.wg.Wait()
 }
 
 func (w *FrameProcessingWorker) Process(
@@ -108,12 +122,10 @@ func (w *FrameProcessingWorker) previewWorker(
 
 			case <-ctx.Done():
 				timer.Stop()
+
+				log.Println("preview worker stopped")
 				return
 			}
-			/*
-			if err := w.preview.ShowFrame(frame); err != nil {
-				log.Println("preview:", err)
-			}*/
 		}
 	}
 }
@@ -121,26 +133,9 @@ func (w *FrameProcessingWorker) previewWorker(
 func (w *FrameProcessingWorker) recordingWorker(
 	ctx context.Context,
 ) {
-	/*
 	for {
 		select {
 		case <-ctx.Done():
-			log.Println("recording worker stopped")
-			return
-
-		case frame := <-w.recordingChan:
-			if err := w.recorder.WriteFrame(frame); err != nil {
-				log.Println("recording:", err)
-			}
-			
-		}
-	}*/
-	
-	for {
-		select {
-		case <-ctx.Done():
-			log.Println("stopping recording worker...")
-
 			// Process all frames that are already
 			// waiting in recordingChan.
 			for {
@@ -156,11 +151,6 @@ func (w *FrameProcessingWorker) recordingWorker(
 				}
 			}
 
-		//case frame := <-w.recordingChan:
-		//	if err := w.recorder.WriteFrame(jobCtx, frame); err != nil {
-		//		log.Println("recording:", err)
-		//	}
-		//}
 		case frame, ok := <-w.recordingChan:
 			if !ok {
 				return
@@ -177,6 +167,7 @@ func (w *FrameProcessingWorker) recordingWorker(
 
 			select {
 			case err := <-done:
+				//frame save and its ok
 				timer.Stop()
 
 				if err != nil {
@@ -190,6 +181,7 @@ func (w *FrameProcessingWorker) recordingWorker(
 				// Continue the for loop and receive the next frame.
 
 			case <-ctx.Done():
+				//Context cancellation -> main.go -> cancel()
 				timer.Stop()
 				return
 			}
