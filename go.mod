@@ -1,4 +1,4 @@
-module video
+module github.com/bogdanCap/video-cap
 
 go 1.26.0
 

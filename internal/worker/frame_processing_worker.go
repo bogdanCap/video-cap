@@ -6,8 +6,8 @@ import (
 	"time"
 	"sync"
 
-	"video/internal/preview"
-	"video/internal/recording"
+	"github.com/bogdanCap/video-cap/internal/preview"
+	"github.com/bogdanCap/video-cap/internal/recording"
 )
 
 const previewTimeout = 100 * time.Millisecond

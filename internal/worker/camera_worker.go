@@ -5,9 +5,8 @@ import (
 	"log"
 	"sync"
 
-
-	"video/internal/camera"
-	"video/internal/detection"
+	"github.com/bogdanCap/video-cap/internal/camera"
+	"github.com/bogdanCap/video-cap/internal/detection"
 )
 
 type CameraWorker struct {

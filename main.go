@@ -10,11 +10,11 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 
-	"video/internal/camera"
-	"video/internal/preview"
-	"video/internal/recording"
-	"video/internal/detection"
-	"video/internal/worker"
+	"github.com/bogdanCap/video-cap/internal/camera"
+	"github.com/bogdanCap/video-cap/internal/preview"
+	"github.com/bogdanCap/video-cap/internal/recording"
+	"github.com/bogdanCap/video-cap/internal/detection"
+	"github.com/bogdanCap/video-cap/internal/worker"
 )
 
 const (
