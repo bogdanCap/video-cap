@@ -2,7 +2,6 @@ package detection
 
 import (
 	"fmt"
-	//"log"
 
 	"gocv.io/x/gocv"
 	"image"
@@ -38,8 +37,8 @@ func NewFaceDetector(
 
 	return &FaceDetector{
 		classifier: classifier,
-		detectionWidth:  detectWidth,
-		detectionHeight: detectHeight,
+		detectionWidth:  640,//detectWidth,
+		detectionHeight: 360,//detectHeight,
 
 		sourceWidth:  sourceWidth,
 		sourceHeight: sourceHeight,
@@ -136,17 +135,37 @@ func (d *FaceDetector) Detect(frame []byte) ([]Face, error) {
 	}
 
 	// Only one face.
+	largestFace := rects[0]
+
+	
+	minFaceArea := 15000
+
+	if largestFace.Dx()*largestFace.Dy() < minFaceArea {
+
+			return []Face{
+				{
+					X:      0,
+					Y:      0,
+					Width:  0,
+					Height: 0,
+				},
+			}, nil
+	}
+	
+	/*
 	firstRect := rects[0]
 	var largestFace image.Rectangle
 
 	//rects[1:] - Create a new slice omitting the first element
 	for _, rect := range rects[1:] {
+		//faceArea := rect.Dx()*rect.Dy()
+		//minFaceArea := 3000
 
 		if rect.Dx()*rect.Dy() > firstRect.Dx()*firstRect.Dy() {
 
 			largestFace = rect
 		}
-	}
+	}*/
 
 	// Convert 640x360 coordinates
 	// back to 2560x1440 coordinates.

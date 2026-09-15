@@ -64,7 +64,7 @@ func (w *CameraWorker) Run(ctx context.Context) <-chan []byte {
 
 			frameNumber++
 
-			/*
+			
 			// Detect face every 5th frame.
 			faces, err := w.detector.Detect(frame)
 
@@ -78,10 +78,10 @@ func (w *CameraWorker) Run(ctx context.Context) <-chan []byte {
 
 			} //else {
 				//lastFace = nil
-			//}*/
+			//}
 
 			
-			
+			/*
 			if frameNumber%5 == 0 {
 				faces, err := w.detector.Detect(frame)
 
@@ -95,7 +95,7 @@ func (w *CameraWorker) Run(ctx context.Context) <-chan []byte {
 				} else {
 					lastFace = nil
 				}
-			}
+			}*/
 
 			// Draw the last detected face.
 			if lastFace != nil {

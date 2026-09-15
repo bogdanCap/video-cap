@@ -29,7 +29,7 @@ const (
 	cameraWidth  = 640
 	cameraHeight = 480
 	detectionWidth = 640
-	detectionHeight = 480
+	detectionHeight = 360
 	cameraFPS    = 30
 
 	// Saved video configuration.
