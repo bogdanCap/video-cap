@@ -4,11 +4,13 @@ import (
 	"log"
 	//"time"
 	"context"
+	"image/color"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
+	"fyne.io/fyne/v2/canvas"
 
 	"github.com/bogdanCap/video-cap/internal/camera"
 	"github.com/bogdanCap/video-cap/internal/preview"
@@ -43,16 +45,25 @@ func NewUIService(
 		//running bool
 		//processingWG sync.WaitGroup
 		//frameWG sync.WaitGroup
+		startButton *widget.Button
+		stopButton *widget.Button
+		faceDetectButton *widget.Button
+		isFaceDetect bool
 	)
+	chanIsFaceDetect := make(chan bool, 1)
 
 	// ----------------------------------------
 	// Start
 	// ----------------------------------------
-	startButton := widget.NewButton(
+
+
+	startButton = widget.NewButton(
 		"Start Video",
 		func() {
 			log.Println("Starting camera...")
 
+			startButton.Hide()
+			stopButton.Show()
 
 			// Start FFmpeg.
 			if err := recorder.Start(); err != nil {
@@ -91,7 +102,10 @@ func NewUIService(
 			frameProcessingWorker.Run(ctx)
 
 			// Start camera worker.
-			frameChan := cameraWorker.Run(ctx)
+			//chanIsFaceDetect - chan event to handle state in goroutines
+			frameChan := cameraWorker.Run(ctx, chanIsFaceDetect)
+
+			
 
 			// Receive frames from CameraWorker
 			// and send them to FrameProcessingWorker.
@@ -114,13 +128,10 @@ func NewUIService(
 		},
 	)
 
-	stopButton := widget.NewButton(
+	stopButton = widget.NewButton(
 		"Stop Video",
 		func() {
-			log.Println(
-				"Stopping camera...",
-			)
-
+			log.Println("Stopping camera...")
 
 			if cancel != nil {
 				cancel()
@@ -150,14 +161,49 @@ func NewUIService(
 			myWindow.Close()
 		},
 	)
+	//by default do not need to show
+	stopButton.Hide()
+
+	faceButtonBorder := canvas.NewRectangle(color.Transparent)
+	faceButtonBorder.StrokeWidth = 0
+
+	faceDetectButton = widget.NewButton("Face detect", func() {
+		// Change the boolean value to its opposite
+		isFaceDetect = !isFaceDetect
+
+		if isFaceDetect {
+			// Change border to green and give it a thickness
+			faceButtonBorder.StrokeColor = color.RGBA{R: 0, G: 255, B: 0, A: 255} // Green
+			faceButtonBorder.StrokeWidth = 3
+			//faceDetectButton.SetText("State: ACTIVE")
+		} else {
+			// Revert border to transparent
+			faceButtonBorder.StrokeColor = color.Transparent
+			faceButtonBorder.StrokeWidth = 0
+			//faceDetectButton.SetText("Toggle State")
+		}
+
+		// Refresh the border canvas object to reflect structural updates
+		faceButtonBorder.Refresh()
+
+		// 3. Send the updated value to the channel without blocking the UI.
+		// We use a select with a default case so if the channel buffer is full,
+		// it drains the old value and sends the newest state.
+		select {
+		case chanIsFaceDetect <- isFaceDetect:
+		default:
+			<-chanIsFaceDetect // Remove old unread state
+			chanIsFaceDetect <- isFaceDetect
+		}
+	})
 
 
 	// ----------------------------------------
 	// Layout
 	// ----------------------------------------
 
-
-	buttons := container.NewHBox(startButton, stopButton)
+	faceDetectButtonContainer := container.NewStack(faceButtonBorder, faceDetectButton)
+	buttons := container.NewHBox(startButton, stopButton, faceDetectButtonContainer)
 
 	content := container.NewBorder(
 		nil,
@@ -167,11 +213,13 @@ func NewUIService(
 		//nil,
 		videoPreview.Widget(),
 	)
+	//content := container.NewPadded(buttons)
 
 	myWindow.SetContent(content)
 
+	//800/480 rp5 disaply resolution
 	myWindow.Resize(
-		fyne.NewSize(800, 500),
+		fyne.NewSize(800, 480),
 	)
 
 	// ----------------------------------------

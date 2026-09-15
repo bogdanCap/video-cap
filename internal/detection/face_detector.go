@@ -37,8 +37,8 @@ func NewFaceDetector(
 
 	return &FaceDetector{
 		classifier: classifier,
-		detectionWidth:  640,//detectWidth,
-		detectionHeight: 360,//detectHeight,
+		detectionWidth:  detectWidth,
+		detectionHeight: detectHeight,
 
 		sourceWidth:  sourceWidth,
 		sourceHeight: sourceHeight,
@@ -90,7 +90,6 @@ func (d *FaceDetector) Detect(frame []byte) ([]Face, error) {
 
 	gocv.CvtColor(
 		small,
-		//mat,
 		&gray,
 		gocv.ColorBGRToGray,
 	)
