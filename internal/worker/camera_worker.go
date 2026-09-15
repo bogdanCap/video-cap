@@ -64,7 +64,24 @@ func (w *CameraWorker) Run(ctx context.Context) <-chan []byte {
 
 			frameNumber++
 
+			/*
 			// Detect face every 5th frame.
+			faces, err := w.detector.Detect(frame)
+
+
+			if err != nil {
+				log.Println("face detection:", err)
+
+			} else if len(faces) > 0 {
+				face := faces[0]
+				lastFace = &face
+
+			} //else {
+				//lastFace = nil
+			//}*/
+
+			
+			
 			if frameNumber%5 == 0 {
 				faces, err := w.detector.Detect(frame)
 

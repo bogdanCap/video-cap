@@ -2,6 +2,7 @@ package detection
 
 import (
 	"fmt"
+	//"log"
 
 	"gocv.io/x/gocv"
 	"image"
@@ -21,6 +22,8 @@ func NewFaceDetector(
 	cascadePath string,
 	sourceWidth int,
 	sourceHeight int,
+	detectWidth int,
+	detectHeight int,
 ) (*FaceDetector, error) {
 	classifier := gocv.NewCascadeClassifier()
 
@@ -35,9 +38,8 @@ func NewFaceDetector(
 
 	return &FaceDetector{
 		classifier: classifier,
-		//TODO move hardcode outside into const
-		detectionWidth:  640,
-		detectionHeight: 360,
+		detectionWidth:  detectWidth,
+		detectionHeight: detectHeight,
 
 		sourceWidth:  sourceWidth,
 		sourceHeight: sourceHeight,
@@ -128,6 +130,8 @@ func (d *FaceDetector) Detect(frame []byte) ([]Face, error) {
 
 	//for single face
 	if len(rects) == 0 {
+		//return last detected face
+		
 		return nil, nil
 	}
 
@@ -152,7 +156,7 @@ func (d *FaceDetector) Detect(frame []byte) ([]Face, error) {
 	scaleY := float64(d.sourceHeight) /
 		float64(d.detectionHeight)
 
-	return []Face{
+	detectedFaces := []Face{
 		{
 			X: int(
 				float64(largestFace.Min.X) * scaleX,
@@ -170,17 +174,9 @@ func (d *FaceDetector) Detect(frame []byte) ([]Face, error) {
 				float64(largestFace.Dy()) * scaleY,
 			),
 		},
-	}, nil
+	}
 
-	/*
-	return []Face{
-		{
-			X:      rect.Min.X,
-			Y:      rect.Min.Y,
-			Width:  rect.Dx(),
-			Height: rect.Dy(),
-		},
-	}, nil*/
+	return detectedFaces, nil
 }
 
 func (d *FaceDetector) DrawFaces(

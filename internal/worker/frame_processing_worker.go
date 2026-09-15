@@ -44,6 +44,7 @@ func NewFrameProcessingWorker(
 }
 
 func (w *FrameProcessingWorker) Run(ctx context.Context) {
+	//listening channel i run logic
 	w.wg.Add(2)
 	
 	go func() {
@@ -68,6 +69,7 @@ func (w *FrameProcessingWorker) Process(
 	ctx context.Context,
 	frame []byte,
 ) {
+	//this select need to detect cancel context from preview and recording goroutines
 	// Preview can drop frames if it is behind.
 	select {
 	case w.previewChan <- frame:

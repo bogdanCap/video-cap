@@ -3,13 +3,14 @@ package main
 import (
 	"log"
 	"time"
-	"context"
+	//"context"
 
-	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/app"
-	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/widget"
+	//"fyne.io/fyne/v2"
+	//"fyne.io/fyne/v2/app"
+	//"fyne.io/fyne/v2/container"
+	//"fyne.io/fyne/v2/widget"
 
+	"github.com/bogdanCap/video-cap/internal/ui"
 	"github.com/bogdanCap/video-cap/internal/camera"
 	"github.com/bogdanCap/video-cap/internal/preview"
 	"github.com/bogdanCap/video-cap/internal/recording"
@@ -21,10 +22,14 @@ const (
 	cameraDevice = "/dev/video0"
 
 	// Camera configuration.
-	//cameraWidth = 2560
-	//cameraHeight = 1440
-	cameraWidth  = 1920
-	cameraHeight = 1080
+	//SD (480p): 640 × 480
+	//HD (720p): 1280 × 720
+	//Full HD (1080p): 1920 × 1080
+	//QHD / 2K (1440p): 2560 × 1440
+	cameraWidth  = 640
+	cameraHeight = 480
+	detectionWidth = 640
+	detectionHeight = 480
 	cameraFPS    = 30
 
 	// Saved video configuration.
@@ -69,6 +74,8 @@ func main() {
 		cascadePath,
 		cameraWidth,
 		cameraHeight,
+		detectionWidth,
+		detectionHeight,
 	)
 
 	if err != nil {
@@ -82,8 +89,8 @@ func main() {
 	// ----------------------------------------
 
 	videoPreview := preview.NewFynePreview(
-		//cameraWidth,
-		//cameraHeight,
+		cameraWidth,
+		cameraHeight,
 	)
 
 	// ----------------------------------------
@@ -110,151 +117,16 @@ func main() {
 		recorder,
 	)
 
-
 	// ----------------------------------------
 	// Fyne
 	// ----------------------------------------
 
-	myApp := app.New()
-
-	myWindow := myApp.NewWindow(
-		"USB Camera",
+	uiService := ui.NewUIService(
+		recorder, 
+		cam, 
+		frameProcessingWorker, 
+		cameraWorker, 
+		videoPreview,
 	)
-
-	myWindow.Resize(
-		fyne.NewSize(800, 500),
-	)
-
-
-	var (
-		ctx context.Context
-		cancel context.CancelFunc
-		//running bool
-		//processingWG sync.WaitGroup
-		//frameWG sync.WaitGroup
-	)
-
-	// ----------------------------------------
-	// Start
-	// ----------------------------------------
-	startButton := widget.NewButton(
-		"Start Video",
-		func() {
-			log.Println("Starting camera...")
-
-
-			// Start FFmpeg.
-			if err := recorder.Start(); err != nil {
-
-				log.Println(
-					"failed to start recorder:",
-					err,
-				)
-
-				_ = cam.Stop()
-
-
-				return
-			}
-
-			log.Println(
-				"Recorder started",
-			)
-
-			ctx, cancel = context.WithCancel(
-				context.Background(),
-			)
-
-			// Start preview and recording workers.
-			frameProcessingWorker.Run(ctx)
-
-			// Start camera worker.
-			frameChan := cameraWorker.Run(ctx)
-
-			// Receive frames from CameraWorker
-			// and send them to FrameProcessingWorker.
-			go func() {
-
-				for {
-					select {
-					case <-ctx.Done():
-						return
-
-					case frame, ok := <-frameChan:
-						if !ok {
-							return
-						}
-
-						frameProcessingWorker.Process(ctx, frame)
-					}
-				}
-			}()
-		},
-	)
-
-	stopButton := widget.NewButton(
-		"Stop Video",
-		func() {
-			log.Println(
-				"Stopping camera...",
-			)
-
-
-			if cancel != nil {
-				cancel()
-			}
-
-			_ = cam.Stop()
-
-			//todo wait when worker finished
-			// Wait for CameraWorker.
-			cameraWorker.Wait()
-
-			// FrameProcessingWorker now:
-			//
-			// - stops preview
-			// - drains recordingChan
-			// - waits for all WriteFrame() goroutines
-			frameProcessingWorker.Wait()
-
-			if err := recorder.Stop(); err != nil {
-				log.Println("recorder stop:", err)
-			}
-
-			//running = false
-
-			log.Println("Camera stopped")
-
-			myWindow.Close()
-		},
-	)
-
-
-	// ----------------------------------------
-	// Layout
-	// ----------------------------------------
-
-	buttons := container.NewHBox(startButton, stopButton)
-
-	content := container.NewBorder(
-		nil,
-		buttons,
-		nil,
-		nil,
-		//nil,
-		videoPreview.Widget(),
-	)
-
-	myWindow.SetContent(content)
-
-	/*
-	myWindow.Resize( 
-		fyne.NewSize(800, 500), 
-	)
-	*/
-	// ----------------------------------------
-	// Run
-	// ----------------------------------------
-
-	myWindow.ShowAndRun()
+	uiService.Start()
 }

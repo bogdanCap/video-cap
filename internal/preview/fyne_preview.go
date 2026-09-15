@@ -16,13 +16,22 @@ type FynePreview struct {
 	container *fyne.Container
 }
 
-func NewFynePreview() *FynePreview {
+func NewFynePreview(
+	width int,
+	height int,
+) *FynePreview {
 	//Initialize UI elements
 	img := canvas.NewImageFromImage(
-		image.NewRGBA(image.Rect(0, 0, 1, 1)),
+		image.NewRGBA(image.Rect(0, 0, width, height)),
 	)
 
 	img.FillMode = canvas.ImageFillContain
+
+	// 3. PIXELS stops blurry linear filtering (retains crisp raw video frames)
+	img.ScaleMode = canvas.ImageScalePixels
+
+	// Enforce a minimum base interface dimension
+	img.SetMinSize(fyne.NewSize(float32(width), float32(height)))
 
 	content := container.NewWithoutLayout(img)
 
