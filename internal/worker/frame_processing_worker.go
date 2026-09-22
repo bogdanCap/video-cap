@@ -9,7 +9,7 @@ import (
 	"github.com/bogdanCap/video-cap/internal/preview"
 	"github.com/bogdanCap/video-cap/internal/recording"
 	"github.com/bogdanCap/video-cap/internal/facemove"
-	"github.com/bogdanCap/video-cap/internal/detection"
+	//"github.com/bogdanCap/video-cap/internal/detection"
 )
 
 const previewTimeout = 100 * time.Millisecond
@@ -96,17 +96,45 @@ func (w *FrameProcessingWorker) Wait() {
 	w.wg.Wait()
 }
 
-func (w *FrameProcessingWorker) Process(
+func (w *FrameProcessingWorker) ProduceFrames(
 	ctx context.Context,
-	frame []byte,
-	faceFrame detection.Face,
+	frameChan <-chan []byte,
+	//frame []byte,
+	//faceFrame detection.Face,
 ) {
+	for {
+		select {
+		case <-ctx.Done():
+			log.Println("produce frame stopped")
+
+			return
+
+		case frame, ok := <-frameChan:
+			if !ok {
+				return
+			}
+
+			select {
+			case w.previewChan <- frame:
+			default:
+				// Drop preview frame.
+			}
+
+			select {
+			case w.recordingChan <- frame:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}
+	/*
+	// send/push job data to the worker
 	//this select need to detect cancel context from preview and recording goroutines
 	// Preview can drop frames if it is behind.
 	select {
 	case w.previewChan <- frame:
 	default:
-		// Drop preview frame.
+		// Drop preview frame - if preview is behind recording goroutines
 	}
 
 	// Recording must not drop frames.
@@ -117,6 +145,7 @@ func (w *FrameProcessingWorker) Process(
 	case <-ctx.Done():
 		return
 	}
+		*/
 
 	//face motion detection
 	/*

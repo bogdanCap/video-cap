@@ -25,7 +25,7 @@ func NewCameraWorker(
 	}
 }
 
-func (w *CameraWorker) Run(ctx context.Context, chanIsFaceDetect <-chan bool) (<-chan []byte, <-chan detection.Face ) {
+func (w *CameraWorker) Run(ctx context.Context, chanIsFaceDetect <-chan bool) (<-chan []byte, <-chan detection.Face) {
 	frameChan := make(chan []byte, 30)
 	faceImageChan := make(chan detection.Face, 30)
 

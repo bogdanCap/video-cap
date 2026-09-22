@@ -54,6 +54,16 @@ Debug delay:
 	)
 
 
+
+camera.Camera          → interface ✅
+detection.Detector     → interface ✅
+recording.Recorder     → interface ✅
+
+CameraWorker           → concrete struct ✅
+FrameProcessingWorker  → concrete struct ✅
+
+
+
 USB Camera
     ↓
 /dev/video0
@@ -90,3 +100,21 @@ v4l.Capture()
                             │
                             ▼
                    recordings/video_*.mp4
+
+
+
+Video goroutines schematic:
+
+CameraWorker
+    Run()
+      │
+      ▼
+  frameChan
+      │
+      ▼
+FrameProcessingWorker
+  ProduceFrames()
+      │
+      ├── previewChan ──> previewWorker()
+      │
+      └── recordingChan -> recordingWorker()

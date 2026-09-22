@@ -100,8 +100,7 @@ func NewUIService(
 				context.Background(),
 			)
 
-			// Start preview and recording workers.
-			frameProcessingWorker.Run(ctx/*, chanFaceMotionResultChan*/)
+			
 
 			// 🟢 FACE Motion detection listening
 			// This goroutine runs instantly when the video goes live. It keeps the channel 
@@ -168,17 +167,21 @@ func NewUIService(
 
 			// Start camera worker.
 			//chanIsFaceDetect - chan event to handle state in goroutines
-			frameChan, faceImageChan := cameraWorker.Run(ctx, chanIsFaceDetect)
+			frameChan, _/*faceImageChan*/ := cameraWorker.Run(ctx, chanIsFaceDetect)
+
+			// Start preview and recording workers.
+			frameProcessingWorker.Run(ctx/*, chanFaceMotionResultChan*/)
 
 			
-
 			// Receive frames from CameraWorker
 			// and send them to FrameProcessingWorker.
 			go func() {
-
+				frameProcessingWorker.ProduceFrames(ctx, frameChan/*, faceImage*/)
+				/*
 				for {
 					select {
 					case <-ctx.Done():
+						log.Println("frame distributor stopped")
 						return
 
 					case frame, ok := <-frameChan:
@@ -186,11 +189,11 @@ func NewUIService(
 							return
 						}
 
-						faceImage := <-faceImageChan
+						//faceImage := <-faceImageChan
 
-						frameProcessingWorker.Process(ctx, frame, faceImage)
+						frameProcessingWorker.Process(ctx, frameChan/*, faceImage*//*)
 					}
-				}
+				}*/
 			}()
 		},
 	)
