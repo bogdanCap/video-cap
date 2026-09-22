@@ -4,11 +4,12 @@ import (
 	"log"
 	"time"
 
-	"github.com/bogdanCap/video-cap/internal/ui"
 	"github.com/bogdanCap/video-cap/internal/camera"
+	"github.com/bogdanCap/video-cap/internal/detection"
+	"github.com/bogdanCap/video-cap/internal/facemove"
 	"github.com/bogdanCap/video-cap/internal/preview"
 	"github.com/bogdanCap/video-cap/internal/recording"
-	"github.com/bogdanCap/video-cap/internal/detection"
+	"github.com/bogdanCap/video-cap/internal/ui"
 	"github.com/bogdanCap/video-cap/internal/worker"
 )
 
@@ -36,7 +37,8 @@ const (
 	// Each file is 30 seconds.
 	chunkDuration = 30 * time.Second
 
-	cascadePath = "model/haarcascade_frontalface_default.xml"
+	//cascadePath = "model/haarcascade_frontalface_default.xml"
+	cascadePath = "model/pigo_facefinder"
 
 	//frameBufferSize = 2
 )
@@ -63,20 +65,20 @@ func main() {
 	// ========================================
 	// Face detector
 	// ========================================
-
+	//TODO for face detector better to use v4l + pigo
 	detector, err := detection.NewFaceDetector(
 		cascadePath,
-		cameraWidth,
+		/*cameraWidth,
 		cameraHeight,
 		detectionWidth,
-		detectionHeight,
+		detectionHeight,*/
 	)
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	defer detector.Close()
+	//defer detector.Close()
 
 	// ----------------------------------------
 	// Preview
@@ -105,10 +107,13 @@ func main() {
 		detector,
 	)
 
+	faceMotion := facemove.NewMotionTracker(15.0)
+
 	// Frame processing.
 	frameProcessingWorker := worker.NewFrameProcessingWorker(
 		videoPreview,
 		recorder,
+		faceMotion,
 	)
 
 	// ----------------------------------------

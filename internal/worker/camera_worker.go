@@ -25,8 +25,9 @@ func NewCameraWorker(
 	}
 }
 
-func (w *CameraWorker) Run(ctx context.Context, chanIsFaceDetect <-chan bool) <-chan []byte {
+func (w *CameraWorker) Run(ctx context.Context, chanIsFaceDetect <-chan bool) (<-chan []byte, <-chan detection.Face ) {
 	frameChan := make(chan []byte, 30)
+	faceImageChan := make(chan detection.Face, 30)
 
 	w.wg.Add(1)
 
@@ -41,28 +42,7 @@ func (w *CameraWorker) Run(ctx context.Context, chanIsFaceDetect <-chan bool) <-
 		)
 
 		for {
-			/* this need i we need to catch event from isFaceDetectButton on live
-			// 1. Check for UI commands and context BEFORE reading the camera
-				select {
-				case <-ctx.Done():
-					log.Println("camera worker stopped")
-					return
-
-				case cmd := <-controlChan:
-					if cmd == "PAUSE" {
-						log.Println("Stream paused. Parking goroutine...")
-						
-						// Enter a blocking state that consumes 0% CPU until START or context cancel arrives
-						if shouldExit := handlePauseState(ctx, controlChan); shouldExit {
-							return
-						}
-					}
-
-				default:
-					// No messages from UI, proceed to capture immediately
-				}
-			*/
-
+			
 			select {
 			case <-ctx.Done():
 				log.Println("camera worker stopped")
@@ -91,7 +71,6 @@ func (w *CameraWorker) Run(ctx context.Context, chanIsFaceDetect <-chan bool) <-
 			if isFaceDetect {
 				frameNumber++
 
-				
 				// Detect face every 5th frame.
 				faces, err := w.detector.Detect(frame)
 
@@ -141,6 +120,7 @@ func (w *CameraWorker) Run(ctx context.Context, chanIsFaceDetect <-chan bool) <-
 			// Send frame to the channel.
 			select {
 			case frameChan <- frame:
+			case faceImageChan <- *lastFace:	
 
 			case <-ctx.Done():
 				log.Println("camera worker stopped")
@@ -150,7 +130,7 @@ func (w *CameraWorker) Run(ctx context.Context, chanIsFaceDetect <-chan bool) <-
 		}
 	}()
 
-	return frameChan
+	return frameChan, faceImageChan
 }
 
 func (w *CameraWorker) Wait() {

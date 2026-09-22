@@ -3,9 +3,11 @@ init:
     go get fyne.io/fyne/v2@v2.7.0  (this version works on ubuntu 20.04)
     go get github.com/korandiz/v4l@v1.1.0
     
-    go get gocv.io/x/gocv@v0.22.0
+    go get gocv.io/x/gocv@v0.22.0  (this do not need - if pigo will works)
+    go get github.com/esimov/pigo/core
+    
 
-    go mod edit -go=1.26.0
+    go mod edit -go=1.27.0
     got mod tidy
     sudo apt install libgl1-mesa-dev xorg-dev
     sudo apt install ffmpeg

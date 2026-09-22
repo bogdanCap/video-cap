@@ -15,7 +15,7 @@ import (
 	"github.com/bogdanCap/video-cap/internal/camera"
 	"github.com/bogdanCap/video-cap/internal/preview"
 	"github.com/bogdanCap/video-cap/internal/recording"
-	//"github.com/bogdanCap/video-cap/internal/detection"
+	//"github.com/bogdanCap/video-cap/internal/facemove"
 	"github.com/bogdanCap/video-cap/internal/worker"
 
 )
@@ -42,21 +42,22 @@ func NewUIService(
 	var (
 		ctx context.Context
 		cancel context.CancelFunc
-		//running bool
-		//processingWG sync.WaitGroup
-		//frameWG sync.WaitGroup
 		startButton *widget.Button
 		stopButton *widget.Button
 		faceDetectButton *widget.Button
 		isFaceDetect bool
 	)
+	//channel with event to toggle face detection logic
 	chanIsFaceDetect := make(chan bool, 1)
+	//chanFaceMotionResultChan := make(chan facemove.MotionResult, 1)
+
+	// Custom canvas background rectangle for changing face detect button colors
+	faceButtonBorder := canvas.NewRectangle(color.Transparent)
+	faceButtonBorder.StrokeWidth = 0
 
 	// ----------------------------------------
 	// Start
 	// ----------------------------------------
-
-
 	startButton = widget.NewButton(
 		"Start Video",
 		func() {
@@ -73,7 +74,8 @@ func NewUIService(
 					err,
 				)
 
-				_ = cam.Stop()
+				defer cam.Stop()
+				//_ = cam.Stop()
 
 
 				return
@@ -99,11 +101,74 @@ func NewUIService(
 			)
 
 			// Start preview and recording workers.
-			frameProcessingWorker.Run(ctx)
+			frameProcessingWorker.Run(ctx/*, chanFaceMotionResultChan*/)
+
+			// 🟢 FACE Motion detection listening
+			// This goroutine runs instantly when the video goes live. It keeps the channel 
+			// drained so the worker never flags a "channel full" frame drop.
+			// listeting goroutinmes to check if face motion detection
+			/*
+			go func(videoCtx context.Context) {
+				log.Println("UI channel reader routine spawned")
+
+				var holdTimer *time.Timer
+				isGreenActive := false
+				for {
+					select {
+					case <-videoCtx.Done():
+						if holdTimer != nil {
+							holdTimer.Stop()
+						}
+
+						log.Println("UI motion reader routine stopped")
+						return
+
+					case result, ok := <-chanFaceMotionResultChan:
+						if !ok {
+							return
+						}
+
+						// Only update the button design layers if face tracking toggle is enabled
+						if isFaceDetect && result.IsMoving {
+							
+							// If a timer is already running, stop it to extend the green time
+							if holdTimer != nil {
+								holdTimer.Stop()
+							}
+
+							// Turn button background green if it isn't already
+							if !isGreenActive {
+								isGreenActive = true
+								fyne.Do(func() {
+									faceDetectButton.Importance = widget.HighImportance
+									faceDetectButton.Refresh()
+								})
+							}
+
+							// Start a new 5-second timer to reset the color back to normal
+							holdTimer = time.AfterFunc(5*time.Second, func() {
+								// Ensure context isn't closed before resetting UI
+								select {
+								case <-videoCtx.Done():
+									return
+								default:
+									isGreenActive = false
+									fyne.Do(func() {
+										faceDetectButton.Importance = widget.MediumImportance
+										faceDetectButton.Refresh()
+									})
+									log.Println("[UI] 5-second hold finished. Resetting button color to default.")
+								}
+							})
+						}
+					}
+				}
+			}(ctx)
+			*/
 
 			// Start camera worker.
 			//chanIsFaceDetect - chan event to handle state in goroutines
-			frameChan := cameraWorker.Run(ctx, chanIsFaceDetect)
+			frameChan, faceImageChan := cameraWorker.Run(ctx, chanIsFaceDetect)
 
 			
 
@@ -121,7 +186,9 @@ func NewUIService(
 							return
 						}
 
-						frameProcessingWorker.Process(ctx, frame)
+						faceImage := <-faceImageChan
+
+						frameProcessingWorker.Process(ctx, frame, faceImage)
 					}
 				}
 			}()
@@ -137,7 +204,8 @@ func NewUIService(
 				cancel()
 			}
 
-			_ = cam.Stop()
+			defer cam.Stop()
+			//_ = cam.Stop()
 
 			//todo wait when worker finished
 			// Wait for CameraWorker.
@@ -164,8 +232,8 @@ func NewUIService(
 	//by default do not need to show
 	stopButton.Hide()
 
-	faceButtonBorder := canvas.NewRectangle(color.Transparent)
-	faceButtonBorder.StrokeWidth = 0
+	//faceButtonBorder := canvas.NewRectangle(color.Transparent)
+	//faceButtonBorder.StrokeWidth = 0
 
 	faceDetectButton = widget.NewButton("Face detect", func() {
 		// Change the boolean value to its opposite
@@ -176,6 +244,9 @@ func NewUIService(
 			faceButtonBorder.StrokeColor = color.RGBA{R: 0, G: 255, B: 0, A: 255} // Green
 			faceButtonBorder.StrokeWidth = 3
 			//faceDetectButton.SetText("State: ACTIVE")
+
+			
+			
 		} else {
 			// Revert border to transparent
 			faceButtonBorder.StrokeColor = color.Transparent

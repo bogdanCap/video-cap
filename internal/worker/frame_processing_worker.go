@@ -8,6 +8,8 @@ import (
 
 	"github.com/bogdanCap/video-cap/internal/preview"
 	"github.com/bogdanCap/video-cap/internal/recording"
+	"github.com/bogdanCap/video-cap/internal/facemove"
+	"github.com/bogdanCap/video-cap/internal/detection"
 )
 
 const previewTimeout = 100 * time.Millisecond
@@ -17,9 +19,11 @@ const recordingTimeout = 40 * time.Millisecond
 type FrameProcessingWorker struct {
 	preview  *preview.FynePreview
 	recorder recording.Recorder
+	faceMotion *facemove.MotionTracker
 
 	previewChan   chan []byte
 	recordingChan chan []byte
+	//faceMotionChan chan detection.Face
 
 	wg sync.WaitGroup
 	//protect from - two goroutines could write to the same FFmpeg stdin at the same time.
@@ -29,10 +33,12 @@ type FrameProcessingWorker struct {
 func NewFrameProcessingWorker(
 	videoPreview *preview.FynePreview,
 	recorder recording.Recorder,
+	faceMotion *facemove.MotionTracker,
 ) *FrameProcessingWorker {
 	return &FrameProcessingWorker{
 		preview:  videoPreview,
 		recorder: recorder,
+		faceMotion: faceMotion,
 
 		// Small buffer because preview can drop frames.
 		previewChan: make(chan []byte, 1),
@@ -40,11 +46,29 @@ func NewFrameProcessingWorker(
 		// Larger buffer because recording must not drop frames.
 		recordingChan: make(chan []byte, 30),
 
+		//faceMotionChan: make(chan detection.Face, 1),
+
 	}
 }
 
-func (w *FrameProcessingWorker) Run(ctx context.Context) {
+func (w *FrameProcessingWorker) Run(ctx context.Context/*, chanFaceMotionResultChan chan<- facemove.MotionResult*/) {
 	//listening channel i run logic
+	/**TODO wg.ADD replace with (and defer do not need) + tested how its works
+	 wg.Go(func() {}
+
+	 workersList := []func(context.Context){
+		worker.ProcessData, // Element 1
+		worker.LogAction,   // Element 2
+	}
+
+	// Loop through the array and call each method
+	for _, worker := range workersList {
+		wg.Go(func() {
+			worker(ctx)
+		})
+	}
+	**/
+	
 	w.wg.Add(2)
 	
 	go func() {
@@ -59,6 +83,13 @@ func (w *FrameProcessingWorker) Run(ctx context.Context) {
 
 		w.recordingWorker(ctx)
 	}()
+
+	/* face motion
+	go func() {
+		defer w.wg.Done()
+
+		w.faceMotionWorker(ctx, chanFaceMotionResultChan)
+	}()*/
 }
 
 func (w *FrameProcessingWorker) Wait() {
@@ -68,6 +99,7 @@ func (w *FrameProcessingWorker) Wait() {
 func (w *FrameProcessingWorker) Process(
 	ctx context.Context,
 	frame []byte,
+	faceFrame detection.Face,
 ) {
 	//this select need to detect cancel context from preview and recording goroutines
 	// Preview can drop frames if it is behind.
@@ -85,6 +117,14 @@ func (w *FrameProcessingWorker) Process(
 	case <-ctx.Done():
 		return
 	}
+
+	//face motion detection
+	/*
+	select {
+	case w.faceMotionChan <- faceFrame:
+	case <-ctx.Done():
+		return
+	}*/
 }
 
 func (w *FrameProcessingWorker) previewWorker(
@@ -195,6 +235,92 @@ func (w *FrameProcessingWorker) recordingWorker(
 	}
 }
 
+/*
+func (w *FrameProcessingWorker) faceMotionWorker(
+	ctx context.Context,
+	chanFaceMotionResultChan chan<- facemove.MotionResult,
+) {
+	for {
+		select {
+		case <-ctx.Done():
+			log.Println("face motion worker stopped")
+			return
+
+		case faceFrame, ok := <-w.faceMotionChan:
+			if !ok {
+				return
+			}
+
+			type trackingResponse struct {
+				isMoving bool
+				face     detection.Face
+				err      error
+			}
+			done := make(chan trackingResponse, 1)
+
+			//done := make(chan bool, 1)
+
+			// Run ShowFrame in another goroutine - this needed for timeout - if ShowFrame freez - code continue to work.
+			go func() {
+				isMoving, matchedFace, err := w.faceMotion.TrackMovement(faceFrame)
+
+				log.Println("face is move:  ", isMoving)
+
+				if err != nil {
+				//	continue
+					log.Println("error to track face motion:  ", err)
+				}
+
+				done <- trackingResponse{
+					isMoving: isMoving,
+					face:     matchedFace,
+					err:      err,
+				}
+				
+			}()
+
+
+			timer := time.NewTimer(previewTimeout)
+
+			select {
+			case out := <-done:
+				timer.Stop()
+
+				if out.err != nil {
+					log.Println("preview:", out.err)
+					continue
+				}
+				
+				// ✅ FIXED: Pure non-blocking send. No read operations on send-only channel.
+				select {
+				case chanFaceMotionResultChan <- facemove.MotionResult{
+					IsMoving: out.isMoving,
+					Face:     out.face,
+				}:
+					log.Println("event caught before send event to side button")
+				
+				default:
+					// If the "Face detect" button loop hasn't started yet or is full,
+					// it hits this default case and drops the frame gracefully so the 
+					// main camera/recording loop never freezes.
+					log.Println("chanFaceMotionResultChan is full or UI loop is inactive - frame dropped")
+				}
+			case <-timer.C:
+				log.Println("preview timeout - skip current job")
+
+				// Do not wait for ShowFrame().
+				// Continue the for loop and receive the next frame.
+
+			case <-ctx.Done():
+				timer.Stop()
+
+				log.Println("preview worker stopped")
+				return
+			}
+		}
+	}
+}
+*/
 func (w *FrameProcessingWorker) writeFrame(frame []byte) error {
 	// Protect FFmpeg stdin from concurrent WriteFrame calls.
 	// protect from - two goroutines could write to the same FFmpeg stdin at the same time.
