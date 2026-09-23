@@ -72,21 +72,32 @@ func (r *FFmpegRecorder) startChunk() error {
 	)
 
 	//this is for face detection mode
-	cmd := exec.Command(
-		"ffmpeg",
+	args := []string{
 		"-y",
-
 		// Input is a sequence of MJPEG/JPEG frames.
+		//"-probesize", "32K",
+		//"-analyzeduration", "0",
+
+		
 		"-f", "mjpeg",
+
+		//"-f", "image2pipe",
+		// 2. Explicitly tell it that the images inside the pipe are mjpegs
+		//"-vcodec", "mjpeg",
+
+		
+
 		"-framerate", fmt.Sprintf("%d", r.fps),
 		"-i", "pipe:0",
-
 		// Video encoding.
 		"-c:v", "libx264",
 		"-preset", "veryfast",
 		"-pix_fmt", "yuv420p",
-
 		filename,
+	}
+	cmd := exec.Command(
+		"ffmpeg",
+		args...
 	)
 
 

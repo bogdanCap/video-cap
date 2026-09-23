@@ -27,7 +27,7 @@ func NewCameraWorker(
 
 func (w *CameraWorker) Run(ctx context.Context, chanIsFaceDetect <-chan bool) (<-chan []byte, <-chan detection.Face) {
 	frameChan := make(chan []byte, 30)
-	faceImageChan := make(chan detection.Face, 30)
+	//faceImageChan := make(chan detection.Face, 30)
 
 	w.wg.Add(1)
 
@@ -74,13 +74,14 @@ func (w *CameraWorker) Run(ctx context.Context, chanIsFaceDetect <-chan bool) (<
 				// Detect face every 5th frame.
 				faces, err := w.detector.Detect(frame)
 
+				//var face *detection.Face
 
 				if err != nil {
 					log.Println("face detection:", err)
 
 				} else if len(faces) > 0 {
-					face := faces[0]
-					lastFace = &face
+					face := &faces[0]
+					lastFace = face
 
 				} //else {
 					//lastFace = nil
@@ -105,8 +106,10 @@ func (w *CameraWorker) Run(ctx context.Context, chanIsFaceDetect <-chan bool) (<
 
 				// Draw the last detected face.
 				if lastFace != nil {
+				//if face != nil {
 					frame, err = w.detector.DrawFaces(
 						frame,
+						//[]detection.Face{*face},
 						[]detection.Face{*lastFace},
 					)
 
@@ -120,7 +123,7 @@ func (w *CameraWorker) Run(ctx context.Context, chanIsFaceDetect <-chan bool) (<
 			// Send frame to the channel.
 			select {
 			case frameChan <- frame:
-			case faceImageChan <- *lastFace:	
+			//case faceImageChan <- *lastFace:	
 
 			case <-ctx.Done():
 				log.Println("camera worker stopped")
@@ -130,7 +133,7 @@ func (w *CameraWorker) Run(ctx context.Context, chanIsFaceDetect <-chan bool) (<
 		}
 	}()
 
-	return frameChan, faceImageChan
+	return frameChan, nil//faceImageChan
 }
 
 func (w *CameraWorker) Wait() {

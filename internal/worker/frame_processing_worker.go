@@ -96,12 +96,13 @@ func (w *FrameProcessingWorker) Wait() {
 	w.wg.Wait()
 }
 
-func (w *FrameProcessingWorker) ProduceFrames(
+func (w *FrameProcessingWorker) PushJob(
 	ctx context.Context,
 	frameChan <-chan []byte,
 	//frame []byte,
 	//faceFrame detection.Face,
 ) {
+	
 	for {
 		select {
 		case <-ctx.Done():
@@ -127,6 +128,7 @@ func (w *FrameProcessingWorker) ProduceFrames(
 			}
 		}
 	}
+	
 	/*
 	// send/push job data to the worker
 	//this select need to detect cancel context from preview and recording goroutines
@@ -145,7 +147,7 @@ func (w *FrameProcessingWorker) ProduceFrames(
 	case <-ctx.Done():
 		return
 	}
-		*/
+	*/
 
 	//face motion detection
 	/*

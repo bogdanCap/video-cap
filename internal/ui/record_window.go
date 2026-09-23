@@ -165,6 +165,7 @@ func NewUIService(
 			}(ctx)
 			*/
 
+
 			// Start camera worker.
 			//chanIsFaceDetect - chan event to handle state in goroutines
 			frameChan, _/*faceImageChan*/ := cameraWorker.Run(ctx, chanIsFaceDetect)
@@ -176,7 +177,8 @@ func NewUIService(
 			// Receive frames from CameraWorker
 			// and send them to FrameProcessingWorker.
 			go func() {
-				frameProcessingWorker.ProduceFrames(ctx, frameChan/*, faceImage*/)
+				frameProcessingWorker.PushJob(ctx, frameChan/*, faceImage*/)
+				
 				/*
 				for {
 					select {
@@ -191,7 +193,7 @@ func NewUIService(
 
 						//faceImage := <-faceImageChan
 
-						frameProcessingWorker.Process(ctx, frameChan/*, faceImage*//*)
+						frameProcessingWorker.PushJob(ctx, frame)
 					}
 				}*/
 			}()
