@@ -57,6 +57,10 @@ func (r *FFmpegRecorder) Start() error {
 	return r.startChunk()
 }
 
+func (r *FFmpegRecorder) IsRunning() bool {
+	return r.input != nil
+}
+
 func (r *FFmpegRecorder) startChunk() error {
 
 	timestamp := time.Now().Format(

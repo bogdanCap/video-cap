@@ -51,7 +51,12 @@ func NewFrameProcessingWorker(
 	}
 }
 
-func (w *FrameProcessingWorker) Run(ctx context.Context, chanFaceMotionResultChan chan<- facemove.MotionResult) {
+func (w *FrameProcessingWorker) Run(
+	ctx context.Context, 
+	chanFaceMotionResultChan chan<- facemove.MotionResult,
+	chanIsMoveDetect <-chan bool,
+	chanMoveAnableDetect <-chan bool,
+) {
 	//listening channel i run logic
 	/**TODO wg.ADD replace with (and defer do not need) + tested how its works
 	 wg.Go(func() {}
@@ -81,7 +86,7 @@ func (w *FrameProcessingWorker) Run(ctx context.Context, chanFaceMotionResultCha
 	go func() {
 		defer w.wg.Done()
 
-		w.recordingWorker(ctx)
+		w.recordingWorker(ctx, chanIsMoveDetect, chanMoveAnableDetect)
 	}()
 
 	// face motion
@@ -213,16 +218,62 @@ func (w *FrameProcessingWorker) previewWorker(
 
 func (w *FrameProcessingWorker) recordingWorker(
 	ctx context.Context,
+	chanIsMoveDetect <-chan bool,
+	chanMoveAnableDetect <-chan bool,
 ) {
+	var (
+		isMoveDetected bool
+		moveDetectAnabled bool
+	)
+
+	/*
+	var isDone bool
+
+    for !isDone {
+        select {
+        case isMoveDetected = <-chanIsMoveDetect:
+            log.Println("motion detection:", isMoveDetected)
+
+        case moveDetectAnabled = <-chanMoveAnableDetect:
+            log.Println("motion enabled:", moveDetectAnabled)
+
+        case <-ctx.Done():
+            log.Println("Context canceled. Exiting active processing...")
+            // 2. Set the flag to true so the loop terminates naturally
+            isDone = true
+        }
+    }*/
+
+	
 	for {
 		select {
+		case isMoveDetected = <-chanIsMoveDetect:
+			//startRecord = isMoveDetected
+			//log.Println("motion detection:", isMoveDetected)
+		case moveDetectAnabled = <-chanMoveAnableDetect:
+			//startRecord = isMoveDetected
+			//log.Println("motion enabled:", chanMoveAnableDetect)
 		case <-ctx.Done():
 			//stop button (cancel) logic
 			// Process all frames that are already
 			// waiting in recordingChan.
 			for {
 				select {
-				case frame := <-w.recordingChan:
+				case frame, ok := <-w.recordingChan:
+					if !ok {
+						log.Println("recording worker stopped")
+						return
+					}
+
+					//if move detection is enabled - we need this to stop record if move end
+					//TODO this is stop button and i think this logic do not need here
+					if moveDetectAnabled {
+						if !isMoveDetected {
+							//log.Println("stop record", chanMoveAnableDetect)
+							continue
+						}
+					}
+
 					if err := w.writeFrame(frame); err != nil {
 						log.Println("recording:", err)
 					}
@@ -232,12 +283,20 @@ func (w *FrameProcessingWorker) recordingWorker(
 					return
 				}
 			}
-
 		case frame, ok := <-w.recordingChan:
 			if !ok {
 				return
 			}
 
+			// Don't record if there is no movement.
+			//if move detection is enabled - we need this to stop record if move end
+			if moveDetectAnabled {
+				if !isMoveDetected {
+					//log.Println("stop record", chanMoveAnableDetect)
+					continue
+				}
+			}
+			
 			done := make(chan error, 1)
 
 			// Run WriteFrame in another goroutine, this needed for timeout - if ShowFrame freez - code continue to work.

@@ -4,4 +4,5 @@ type Recorder interface {
 	Start() error
 	WriteFrame(frame []byte) error
 	Stop() error
+	IsRunning() bool
 }
