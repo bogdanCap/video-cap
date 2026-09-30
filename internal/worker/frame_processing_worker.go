@@ -23,7 +23,7 @@ type FrameProcessingWorker struct {
 
 	previewChan   chan []byte
 	recordingChan chan []byte
-	//faceMotionChan chan detection.Face
+	faceMotionChan chan []byte//chan detection.Face
 
 	wg sync.WaitGroup
 	//protect from - two goroutines could write to the same FFmpeg stdin at the same time.
@@ -46,12 +46,12 @@ func NewFrameProcessingWorker(
 		// Larger buffer because recording must not drop frames.
 		recordingChan: make(chan []byte, 30),
 
-		//faceMotionChan: make(chan detection.Face, 1),
+		faceMotionChan: make(chan []byte, 1),
 
 	}
 }
 
-func (w *FrameProcessingWorker) Run(ctx context.Context/*, chanFaceMotionResultChan chan<- facemove.MotionResult*/) {
+func (w *FrameProcessingWorker) Run(ctx context.Context, chanFaceMotionResultChan chan<- facemove.MotionResult) {
 	//listening channel i run logic
 	/**TODO wg.ADD replace with (and defer do not need) + tested how its works
 	 wg.Go(func() {}
@@ -69,7 +69,7 @@ func (w *FrameProcessingWorker) Run(ctx context.Context/*, chanFaceMotionResultC
 	}
 	**/
 	
-	w.wg.Add(2)
+	w.wg.Add(3)
 	
 	go func() {
 		defer w.wg.Done()
@@ -84,12 +84,12 @@ func (w *FrameProcessingWorker) Run(ctx context.Context/*, chanFaceMotionResultC
 		w.recordingWorker(ctx)
 	}()
 
-	/* face motion
+	// face motion
 	go func() {
 		defer w.wg.Done()
 
 		w.faceMotionWorker(ctx, chanFaceMotionResultChan)
-	}()*/
+	}()
 }
 
 func (w *FrameProcessingWorker) Wait() {
@@ -123,6 +123,12 @@ func (w *FrameProcessingWorker) PushJob(
 
 			select {
 			case w.recordingChan <- frame:
+			case <-ctx.Done():
+				return
+			}
+
+			select {
+			case w.faceMotionChan <- frame:
 			case <-ctx.Done():
 				return
 			}
@@ -266,7 +272,7 @@ func (w *FrameProcessingWorker) recordingWorker(
 	}
 }
 
-/*
+
 func (w *FrameProcessingWorker) faceMotionWorker(
 	ctx context.Context,
 	chanFaceMotionResultChan chan<- facemove.MotionResult,
@@ -277,14 +283,14 @@ func (w *FrameProcessingWorker) faceMotionWorker(
 			log.Println("face motion worker stopped")
 			return
 
-		case faceFrame, ok := <-w.faceMotionChan:
+		case frame, ok := <-w.faceMotionChan:
 			if !ok {
 				return
 			}
 
 			type trackingResponse struct {
 				isMoving bool
-				face     detection.Face
+				//face     detection.Face
 				err      error
 			}
 			done := make(chan trackingResponse, 1)
@@ -293,9 +299,9 @@ func (w *FrameProcessingWorker) faceMotionWorker(
 
 			// Run ShowFrame in another goroutine - this needed for timeout - if ShowFrame freez - code continue to work.
 			go func() {
-				isMoving, matchedFace, err := w.faceMotion.TrackMovement(faceFrame)
+				isMoving, err := w.faceMotion.TrackMovement(frame)
 
-				log.Println("face is move:  ", isMoving)
+				//log.Println("face is move:  ", isMoving)
 
 				if err != nil {
 				//	continue
@@ -304,7 +310,7 @@ func (w *FrameProcessingWorker) faceMotionWorker(
 
 				done <- trackingResponse{
 					isMoving: isMoving,
-					face:     matchedFace,
+					//face:     matchedFace,
 					err:      err,
 				}
 				
@@ -326,14 +332,15 @@ func (w *FrameProcessingWorker) faceMotionWorker(
 				select {
 				case chanFaceMotionResultChan <- facemove.MotionResult{
 					IsMoving: out.isMoving,
-					Face:     out.face,
+					//Face:     out.face,
 				}:
-					log.Println("event caught before send event to side button")
+					//log.Println("event caught before send event to side button")
 				
 				default:
 					// If the "Face detect" button loop hasn't started yet or is full,
 					// it hits this default case and drops the frame gracefully so the 
 					// main camera/recording loop never freezes.
+
 					log.Println("chanFaceMotionResultChan is full or UI loop is inactive - frame dropped")
 				}
 			case <-timer.C:
@@ -351,7 +358,7 @@ func (w *FrameProcessingWorker) faceMotionWorker(
 		}
 	}
 }
-*/
+
 func (w *FrameProcessingWorker) writeFrame(frame []byte) error {
 	// Protect FFmpeg stdin from concurrent WriteFrame calls.
 	// protect from - two goroutines could write to the same FFmpeg stdin at the same time.

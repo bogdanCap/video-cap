@@ -4,6 +4,9 @@ import (
 	"log"
 	"time"
 
+	"bytes"
+	"encoding/xml"
+
 	"github.com/bogdanCap/video-cap/internal/camera"
 	"github.com/bogdanCap/video-cap/internal/detection"
 	"github.com/bogdanCap/video-cap/internal/facemove"
@@ -44,7 +47,6 @@ const (
 )
 
 func main() {
-
 	// ----------------------------------------
 	// Camera
 	// ----------------------------------------
@@ -107,13 +109,15 @@ func main() {
 		detector,
 	)
 
-	faceMotion := facemove.NewMotionTracker(15.0)
+	motionTracker := facemove.NewMotionTracker(
+		5.0,
+	)
 
 	// Frame processing.
 	frameProcessingWorker := worker.NewFrameProcessingWorker(
 		videoPreview,
 		recorder,
-		faceMotion,
+		motionTracker,
 	)
 
 	// ----------------------------------------
@@ -128,4 +132,12 @@ func main() {
 		videoPreview,
 	)
 	uiService.Start()
+}
+
+func xmlEscape(s string) string {
+	var buf bytes.Buffer
+	if err := xml.EscapeText(&buf, []byte(s)); err != nil {
+		return s
+	}
+	return buf.String()
 }

@@ -1,11 +1,11 @@
 package facemove
 
-import (
-	"github.com/bogdanCap/video-cap/internal/detection"
-)
+//import (
+	//"github.com/bogdanCap/video-cap/internal/detection"
+//)
 
 type MotionResult struct {
 	IsMoving bool
-	Face     detection.Face
+	//Face     detection.Face
 	Frame    []byte
 }

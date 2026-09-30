@@ -1,18 +1,20 @@
 package ui
 
 import (
-    "context"
-    "log"
+	"context"
 	"image/color"
+	"log"
+	"time"
 
-    "fyne.io/fyne/v2"
-    "fyne.io/fyne/v2/widget"
+	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/widget"
 
-    "github.com/bogdanCap/video-cap/internal/camera"
-    "github.com/bogdanCap/video-cap/internal/recording"
-    "github.com/bogdanCap/video-cap/internal/worker"
+	"github.com/bogdanCap/video-cap/internal/camera"
+	"github.com/bogdanCap/video-cap/internal/facemove"
+	"github.com/bogdanCap/video-cap/internal/recording"
+	"github.com/bogdanCap/video-cap/internal/worker"
 )
 
 type VideoControl struct {
@@ -21,6 +23,8 @@ type VideoControl struct {
 	stopButton       *widget.Button
 	faceDetectButton *widget.Button
 	faceButtonBorder *canvas.Rectangle
+	moveDetectButton *widget.Button
+	moveButtonBorder *canvas.Rectangle
 
 	// Video dependencies
 	recorder              recording.Recorder
@@ -32,7 +36,9 @@ type VideoControl struct {
 	ctx            context.Context
 	cancel         context.CancelFunc
 	isFaceDetect   bool
+	isMoveDetect   bool
 	chanIsFaceDetect chan bool
+	chanFaceMotionResultChan chan facemove.MotionResult
 
 	// Callbacks
 	onStopWindow func()
@@ -52,6 +58,7 @@ func NewVideoControl(
         cameraWorker:          cameraWorker,
         frameProcessingWorker: frameProcessingWorker,
 		chanIsFaceDetect: make(chan bool, 1),
+		chanFaceMotionResultChan : make(chan facemove.MotionResult),
 		onStopWindow: onStopWindow,
     }
 
@@ -67,11 +74,18 @@ func NewVideoControl(
 
 	//init border
 	controls.faceButtonBorder = canvas.NewRectangle(color.Transparent)
-
 	controls.faceDetectButton = widget.NewButton(
 		"Face detect",
 		controls.toggleFaceDetection,
 	)
+
+	controls.moveButtonBorder = canvas.NewRectangle(color.Transparent)
+	controls.moveDetectButton = widget.NewButton(
+		"Move detect",
+		controls.toggleMoveDetection,
+	)
+
+
 
     controls.stopButton.Hide()
 
@@ -148,7 +162,7 @@ func (c *VideoControl) start() {
 	// This goroutine runs instantly when the video goes live. It keeps the channel 
 	// drained so the worker never flags a "channel full" frame drop.
 	// listeting goroutinmes to check if face motion detection
-	/*
+	
 	go func(videoCtx context.Context) {
 		log.Println("UI channel reader routine spawned")
 
@@ -164,14 +178,19 @@ func (c *VideoControl) start() {
 				log.Println("UI motion reader routine stopped")
 				return
 
-			case result, ok := <-chanFaceMotionResultChan:
+			case result, ok := <-c.chanFaceMotionResultChan:
 				if !ok {
 					return
 				}
 
 				// Only update the button design layers if face tracking toggle is enabled
-				if isFaceDetect && result.IsMoving {
-							
+				if c.isMoveDetect && result.IsMoving {
+					//TODO if move detected - we can run capture process
+					//todo and i think this logic need to move outside of the service
+
+					log.Println("move detected = ", result.IsMoving)
+
+
 					// If a timer is already running, stop it to extend the green time
 					if holdTimer != nil {
 						holdTimer.Stop()
@@ -181,8 +200,8 @@ func (c *VideoControl) start() {
 					if !isGreenActive {
 						isGreenActive = true
 						fyne.Do(func() {
-							faceDetectButton.Importance = widget.HighImportance
-							faceDetectButton.Refresh()
+							c.moveDetectButton.Importance = widget.HighImportance
+							c.moveDetectButton.Refresh()
 						})
 					}
 
@@ -195,8 +214,8 @@ func (c *VideoControl) start() {
 						default:
 							isGreenActive = false
 							fyne.Do(func() {
-								faceDetectButton.Importance = widget.MediumImportance
-								faceDetectButton.Refresh()
+								c.moveDetectButton.Importance = widget.MediumImportance
+								c.moveDetectButton.Refresh()
 							})
 							log.Println("[UI] 5-second hold finished. Resetting button color to default.")
 						}
@@ -204,8 +223,7 @@ func (c *VideoControl) start() {
 				}
 			}
 		}
-	}(ctx)
-	*/
+	}(c.ctx)
 
 
 	// Start camera worker.
@@ -213,7 +231,7 @@ func (c *VideoControl) start() {
 	frameChan, _/*faceImageChan*/ := c.cameraWorker.Run(c.ctx, c.chanIsFaceDetect)
 
 	 // Start preview and recording workers.
-	c.frameProcessingWorker.Run(c.ctx/*, chanFaceMotionResultChan*/)
+	c.frameProcessingWorker.Run(c.ctx, c.chanFaceMotionResultChan)
 
 			
 	// Receive frames from CameraWorker
@@ -284,15 +302,47 @@ func (c *VideoControl) toggleFaceDetection() {
 	}
 }
 
+func (c *VideoControl) toggleMoveDetection() {
+	c.isMoveDetect = !c.isMoveDetect
+
+	if c.isMoveDetect {
+		
+		c.moveButtonBorder.StrokeColor = color.RGBA{R: 0, G: 255, B: 0, A: 255} // Green
+		c.moveButtonBorder.StrokeWidth = 3
+	} else {
+		c.moveButtonBorder.StrokeColor = color.Transparent
+		c.moveButtonBorder.StrokeWidth = 0
+	}
+
+	c.moveButtonBorder.Refresh()
+
+	// Send the latest state without blocking the UI.
+	/*
+	select {
+	case c.chanIsFaceDetect <- c.isMoveDetect:
+	default:
+		// Remove the previous unread state.
+		<-c.chanIsFaceDetect
+
+		// Send the newest state.
+		c.chanIsFaceDetect <- c.isMoveDetect
+	}*/
+}
+
 func (c *VideoControl) Buttons() fyne.CanvasObject {
     faceDetectButtonContainer := container.NewStack(
 		c.faceButtonBorder,
 		c.faceDetectButton,
+	)
+	moveDetectButtonContainer := container.NewStack(
+		c.moveButtonBorder,
+		c.moveDetectButton,
 	)
 
 	return container.NewHBox(
 		c.startButton,
 		c.stopButton,
 		faceDetectButtonContainer,
+		moveDetectButtonContainer,
 	)
 }

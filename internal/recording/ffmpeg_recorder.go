@@ -72,6 +72,8 @@ func (r *FFmpegRecorder) startChunk() error {
 	)
 
 	//this is for face detection mode
+	//recorrds video in 640x480 as set-up in V4LCamera
+	//check video details - ffprobe video_20260923_011226.mp4
 	args := []string{
 		"-y",
 		// Input is a sequence of MJPEG/JPEG frames.
