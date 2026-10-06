@@ -9,7 +9,7 @@ import (
 
 	"github.com/bogdanCap/video-cap/internal/camera"
 	"github.com/bogdanCap/video-cap/internal/detection"
-	"github.com/bogdanCap/video-cap/internal/facemove"
+	"github.com/bogdanCap/video-cap/internal/motiontracker"
 	"github.com/bogdanCap/video-cap/internal/preview"
 	"github.com/bogdanCap/video-cap/internal/recording"
 	"github.com/bogdanCap/video-cap/internal/ui"
@@ -70,17 +70,11 @@ func main() {
 	//TODO for face detector better to use v4l + pigo
 	detector, err := detection.NewFaceDetector(
 		cascadePath,
-		/*cameraWidth,
-		cameraHeight,
-		detectionWidth,
-		detectionHeight,*/
 	)
 
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	//defer detector.Close()
 
 	// ----------------------------------------
 	// Preview
@@ -109,7 +103,7 @@ func main() {
 		detector,
 	)
 
-	motionTracker := facemove.NewMotionTracker(
+	motionTracker := motiontracker.NewMotionTracker(
 		5.0,
 	)
 

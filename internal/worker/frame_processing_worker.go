@@ -8,7 +8,7 @@ import (
 
 	"github.com/bogdanCap/video-cap/internal/preview"
 	"github.com/bogdanCap/video-cap/internal/recording"
-	"github.com/bogdanCap/video-cap/internal/facemove"
+	"github.com/bogdanCap/video-cap/internal/motiontracker"
 	//"github.com/bogdanCap/video-cap/internal/detection"
 )
 
@@ -19,7 +19,7 @@ const recordingTimeout = 40 * time.Millisecond
 type FrameProcessingWorker struct {
 	preview  *preview.FynePreview
 	recorder recording.Recorder
-	faceMotion *facemove.MotionTracker
+	faceMotion *motiontracker.MotionTracker
 
 	previewChan   chan []byte
 	recordingChan chan []byte
@@ -33,7 +33,7 @@ type FrameProcessingWorker struct {
 func NewFrameProcessingWorker(
 	videoPreview *preview.FynePreview,
 	recorder recording.Recorder,
-	faceMotion *facemove.MotionTracker,
+	faceMotion *motiontracker.MotionTracker,
 ) *FrameProcessingWorker {
 	return &FrameProcessingWorker{
 		preview:  videoPreview,
@@ -53,7 +53,7 @@ func NewFrameProcessingWorker(
 
 func (w *FrameProcessingWorker) Run(
 	ctx context.Context, 
-	chanFaceMotionResultChan chan<- facemove.MotionResult,
+	chanFaceMotionResultChan chan<- motiontracker.MotionResult,
 	chanIsMoveDetect <-chan bool,
 	chanMoveAnableDetect <-chan bool,
 ) {
@@ -226,24 +226,6 @@ func (w *FrameProcessingWorker) recordingWorker(
 		moveDetectAnabled bool
 	)
 
-	/*
-	var isDone bool
-
-    for !isDone {
-        select {
-        case isMoveDetected = <-chanIsMoveDetect:
-            log.Println("motion detection:", isMoveDetected)
-
-        case moveDetectAnabled = <-chanMoveAnableDetect:
-            log.Println("motion enabled:", moveDetectAnabled)
-
-        case <-ctx.Done():
-            log.Println("Context canceled. Exiting active processing...")
-            // 2. Set the flag to true so the loop terminates naturally
-            isDone = true
-        }
-    }*/
-
 	
 	for {
 		select {
@@ -334,7 +316,7 @@ func (w *FrameProcessingWorker) recordingWorker(
 
 func (w *FrameProcessingWorker) faceMotionWorker(
 	ctx context.Context,
-	chanFaceMotionResultChan chan<- facemove.MotionResult,
+	chanFaceMotionResultChan chan<- motiontracker.MotionResult,
 ) {
 	for {
 		select {
@@ -389,7 +371,7 @@ func (w *FrameProcessingWorker) faceMotionWorker(
 				
 				// ✅ FIXED: Pure non-blocking send. No read operations on send-only channel.
 				select {
-				case chanFaceMotionResultChan <- facemove.MotionResult{
+				case chanFaceMotionResultChan <- motiontracker.MotionResult{
 					IsMoving: out.isMoving,
 					//Face:     out.face,
 				}:

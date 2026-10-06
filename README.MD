@@ -36,8 +36,6 @@ run:
     go build -o record
     ./record
 
-
-
 Debug video:
     video fpv:
         ffprobe -v error \

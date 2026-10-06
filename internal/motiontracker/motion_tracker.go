@@ -1,4 +1,4 @@
-package facemove
+package motiontracker
 
 import (
 	//"math"
@@ -18,8 +18,6 @@ type MotionTracker struct {
 	// Example: 2.0 = 2% of pixels changed.
 	moveThreshold float64
 }
-
-
 
 func NewMotionTracker(moveThreshold float64) *MotionTracker {
 	return &MotionTracker{

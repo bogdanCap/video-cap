@@ -12,13 +12,12 @@ import (
 	"golang.org/x/image/draw"
 )
 
-/*
 type Face struct {
 	X      int
 	Y      int
 	Width  int
 	Height int
-}*/
+}
 
 type FaceDetector struct {
 	classifier *pigo.Pigo

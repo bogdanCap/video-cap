@@ -1,4 +1,4 @@
-package facemove
+package motiontracker
 
 //import (
 	//"github.com/bogdanCap/video-cap/internal/detection"

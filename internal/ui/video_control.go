@@ -12,7 +12,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/bogdanCap/video-cap/internal/camera"
-	"github.com/bogdanCap/video-cap/internal/facemove"
+	"github.com/bogdanCap/video-cap/internal/motiontracker"
 	"github.com/bogdanCap/video-cap/internal/recording"
 	"github.com/bogdanCap/video-cap/internal/worker"
 )
@@ -40,7 +40,7 @@ type VideoControl struct {
 	chanMoveAnableDetect chan bool
 	chanIsMoveDetect chan bool
 	chanIsFaceDetect chan bool
-	chanFaceMotionResultChan chan facemove.MotionResult
+	chanFaceMotionResultChan chan motiontracker.MotionResult
 
 	// Callbacks
 	onStopWindow func()
@@ -60,7 +60,7 @@ func NewVideoControl(
         cameraWorker:          cameraWorker,
         frameProcessingWorker: frameProcessingWorker,
 		chanIsFaceDetect: make(chan bool, 1),
-		chanFaceMotionResultChan : make(chan facemove.MotionResult),
+		chanFaceMotionResultChan : make(chan motiontracker.MotionResult),
 		chanIsMoveDetect: make(chan bool, 1), 
 		chanMoveAnableDetect: make(chan bool, 1),
 		onStopWindow: onStopWindow,
@@ -88,8 +88,6 @@ func NewVideoControl(
 		"Move detect",
 		controls.toggleMoveDetection,
 	)
-
-
 
     controls.stopButton.Hide()
 
@@ -138,11 +136,136 @@ func (c *VideoControl) start() {
 		context.Background(),
 	)
 		
-	// 🟢 FACE Motion detection listening
+	// 🟢 Motion detection listening
 	// This goroutine runs instantly when the video goes live. It keeps the channel 
 	// drained so the worker never flags a "channel full" frame drop.
 	// listeting goroutinmes to check if face motion detection
 	
+	go func(videoCtx context.Context) {
+		log.Println("UI channel reader routine spawned")
+
+		var holdTimer *time.Timer
+		isGreenActive := false
+		for {
+			select {
+			case <-videoCtx.Done():
+				if holdTimer != nil {
+					holdTimer.Stop()
+				}
+
+				log.Println("UI motion reader routine stopped")
+				return
+
+			case result, ok := <-c.chanFaceMotionResultChan:
+				if !ok {
+					return
+				}
+
+				// Only update the button design layers if face tracking toggle is enabled
+				if c.isMoveDetect && result.IsMoving {
+					//TODO if move detected - we can run capture process
+					//todo and i think this logic need to move outside of the service
+
+					//log.Println("move detected = ", result.IsMoving)
+					
+					select {
+					case c.chanIsMoveDetect <- true:
+					default:
+						// Remove the previous unread state.
+						<-c.chanIsMoveDetect
+
+						// Send the newest state.
+						c.chanIsMoveDetect <- true
+					}
+
+
+					// If a timer is already running, stop it to extend the green time
+					if holdTimer != nil {
+						holdTimer.Stop()
+					}
+
+					// Turn button background green if it isn't already
+					if !isGreenActive {
+						isGreenActive = true
+						fyne.Do(func() {
+							c.moveDetectButton.Importance = widget.HighImportance
+							c.moveDetectButton.Refresh()
+						})
+					}
+
+					//log.Println("move detect")
+
+					if !c.recorder.IsRunning() {
+						// Start FFmpeg.
+						if err := c.recorder.Start(); err != nil {
+
+							log.Println(
+								"failed to start recorder:",
+								err,
+							)
+
+							defer c.cam.Stop()
+
+							return
+						}
+					}
+
+					// Start a new 20-second timer to reset the color back to normal and stop recording
+					holdTimer = time.AfterFunc(20*time.Second, func() {
+						// Ensure context isn't closed before resetting UI
+						select {
+						case <-videoCtx.Done():
+							return
+						default:
+							isGreenActive = false
+							fyne.Do(func() {
+								c.moveDetectButton.Importance = widget.MediumImportance
+								c.moveDetectButton.Refresh()
+							})
+							log.Println("[UI] 20-second hold finished. Resetting button color to default.")
+							//and now stop recording after 20 seconds
+
+							select {
+							case c.chanIsMoveDetect <- false:
+							default:
+								// Remove the previous unread state.
+								<-c.chanIsMoveDetect
+
+								// Send the newest state.
+								c.chanIsMoveDetect <- false
+							}
+
+							//stop all record 
+							//TODO need to do new function to stop only record and do not close the script
+							//TODO need to add new function to stop only record and do not stop another logic
+							c.stopRecording()
+							//c.stop()
+						}
+					})
+				}
+			}
+		}
+	}(c.ctx)
+	//c.motionHandler()
+
+	// Start camera worker.
+	//chanIsFaceDetect - chan event to handle state in goroutines
+	frameChan, _/*faceImageChan*/ := c.cameraWorker.Run(c.ctx, c.chanIsFaceDetect)
+
+	 // Start preview and recording workers.
+	 //TODO maybe better - face motion goroutines move to frameProcessingWorker
+	c.frameProcessingWorker.Run(c.ctx, c.chanFaceMotionResultChan, c.chanIsMoveDetect, c.chanMoveAnableDetect)
+
+			
+	// Receive frames from CameraWorker
+	// and send them to FrameProcessingWorker.
+	go func() {
+		c.frameProcessingWorker.PushJob(c.ctx, frameChan/*, faceImage*/)		
+	}()
+}
+
+//listening for motion with logic to start recoring/stop if motion detected
+func (c *VideoControl) motionHandler() {
 	go func(videoCtx context.Context) {
 		log.Println("UI channel reader routine spawned")
 
@@ -212,8 +335,7 @@ func (c *VideoControl) start() {
 						}
 					}
 
-			
-					// Start a new 5-second timer to reset the color back to normal
+					// Start a new 20-second timer to reset the color back to normal and stop recording
 					holdTimer = time.AfterFunc(20*time.Second, func() {
 						// Ensure context isn't closed before resetting UI
 						select {
@@ -249,20 +371,6 @@ func (c *VideoControl) start() {
 			}
 		}
 	}(c.ctx)
-
-	// Start camera worker.
-	//chanIsFaceDetect - chan event to handle state in goroutines
-	frameChan, _/*faceImageChan*/ := c.cameraWorker.Run(c.ctx, c.chanIsFaceDetect)
-
-	 // Start preview and recording workers.
-	c.frameProcessingWorker.Run(c.ctx, c.chanFaceMotionResultChan, c.chanIsMoveDetect, c.chanMoveAnableDetect)
-
-			
-	// Receive frames from CameraWorker
-	// and send them to FrameProcessingWorker.
-	go func() {
-		c.frameProcessingWorker.PushJob(c.ctx, frameChan/*, faceImage*/)		
-	}()
 }
 
 func (c *VideoControl) stop() {
@@ -273,8 +381,10 @@ func (c *VideoControl) stop() {
 	}
 
 	// Stop the camera first so CameraWorker can finish.
-	if err := c.cam.Stop(); err != nil {
-		log.Println("camera stop:", err)
+	if !c.isMoveDetect {
+		if err := c.cam.Stop(); err != nil {
+			log.Println("camera stop:", err)
+		}
 	}
 
 	// Wait until CameraWorker has completely stopped.
@@ -294,16 +404,31 @@ func (c *VideoControl) stop() {
 	if c.onStopWindow != nil && !c.isMoveDetect {
 		c.onStopWindow()
 	}
+
+	if c.isMoveDetect {
+		c.stopButton.Hide()
+		c.startButton.Show()
+	}
 }
 
 func (c *VideoControl) stopRecording() {
 	log.Println("Stopping recorder...")
 
-	if err := c.recorder.Stop(); err != nil {
-		log.Println("recorder stop:", err)
+	// Wait until CameraWorker has completely stopped.
+	c.cameraWorker.Wait()
+
+	// Wait until frame processing has completely stopped.
+	c.frameProcessingWorker.Wait()
+
+	if c.recorder.IsRunning() {
+		if err := c.recorder.Stop(); err != nil {
+			log.Println("recorder stop:", err)
+		}
 	}
 
 	log.Println("Recorder stopped")
+	//c.stopButton.Hide()
+	//c.startButton.Show()
 }
 
 func (c *VideoControl) toggleFaceDetection() {
@@ -342,9 +467,8 @@ func (c *VideoControl) toggleMoveDetection() {
 		c.moveButtonBorder.StrokeColor = color.RGBA{R: 0, G: 255, B: 0, A: 255} // Green
 		c.moveButtonBorder.StrokeWidth = 3
 
-		//run preview and record
+		//run preview and video record
 		c.start()
-
 	} else {
 		c.moveButtonBorder.StrokeColor = color.Transparent
 		c.moveButtonBorder.StrokeWidth = 0
@@ -352,7 +476,6 @@ func (c *VideoControl) toggleMoveDetection() {
 
 	c.moveButtonBorder.Refresh()
 
-	
 	select {
 	case c.chanMoveAnableDetect <- c.isMoveDetect:
 	default:
@@ -362,18 +485,6 @@ func (c *VideoControl) toggleMoveDetection() {
 		// Send the newest state.
 		c.chanMoveAnableDetect <- c.isMoveDetect
 	}
-
-	// Send the latest state without blocking the UI.
-	/*
-	select {
-	case c.chanMoveDetect <- c.isMoveDetect:
-	default:
-		// Remove the previous unread state.
-		<-c.chanMoveDetect
-
-		// Send the newest state.
-		c.chanMoveDetect <- c.isMoveDetect
-	}*/
 }
 
 func (c *VideoControl) Buttons() fyne.CanvasObject {
