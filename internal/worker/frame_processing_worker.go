@@ -53,9 +53,9 @@ func NewFrameProcessingWorker(
 
 func (w *FrameProcessingWorker) Run(
 	ctx context.Context, 
-	chanFaceMotionResultChan chan<- motiontracker.MotionResult,
-	chanIsMoveDetect <-chan bool,
-	chanMoveAnableDetect <-chan bool,
+	motionTrackingResultChan chan<- motiontracker.MotionResult,
+	isMoveDetectChan <-chan bool,
+	moveAnableDetectChan <-chan bool,
 ) {
 	//listening channel i run logic
 	/**TODO wg.ADD replace with (and defer do not need) + tested how its works
@@ -86,14 +86,14 @@ func (w *FrameProcessingWorker) Run(
 	go func() {
 		defer w.wg.Done()
 
-		w.recordingWorker(ctx, chanIsMoveDetect, chanMoveAnableDetect)
+		w.recordingWorker(ctx, isMoveDetectChan, moveAnableDetectChan)
 	}()
 
 	// face motion
 	go func() {
 		defer w.wg.Done()
 
-		w.faceMotionWorker(ctx, chanFaceMotionResultChan)
+		w.motionTrackerWorker(ctx, motionTrackingResultChan)
 	}()
 }
 
@@ -314,7 +314,7 @@ func (w *FrameProcessingWorker) recordingWorker(
 }
 
 
-func (w *FrameProcessingWorker) faceMotionWorker(
+func (w *FrameProcessingWorker) motionTrackerWorker(
 	ctx context.Context,
 	chanFaceMotionResultChan chan<- motiontracker.MotionResult,
 ) {

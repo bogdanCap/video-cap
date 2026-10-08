@@ -10,6 +10,7 @@ import (
 	"github.com/bogdanCap/video-cap/internal/recording"
 	//"github.com/bogdanCap/video-cap/internal/facemove"
 	"github.com/bogdanCap/video-cap/internal/worker"
+	"github.com/bogdanCap/video-cap/internal/service"
 
 )
 
@@ -31,6 +32,7 @@ func NewUIService(
 		"USB Camera",
 	)
 
+	/*
 	videoControls := NewVideoControl(
         recorder,
         cam,
@@ -40,11 +42,21 @@ func NewUIService(
 		func() {
 			myWindow.Close()
 		},
-    )
+    )*/
+	videoControlService := service.NewVideoControlService(
+		recorder,
+        cam,
+        cameraWorker,
+        frameProcessingWorker,
+		//callback to stop fyne window
+		func() {
+			myWindow.Close()
+		},
+	)
 
     content := container.NewBorder(
         nil,
-        videoControls.Buttons(),
+        videoControlService.Buttons(),
         nil,
         nil,
         videoPreview.Widget(),

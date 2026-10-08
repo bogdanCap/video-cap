@@ -68,6 +68,14 @@ func (w *CameraWorker) Run(ctx context.Context, chanIsFaceDetect <-chan bool) (<
 				return
 			}
 
+			//TODO add select to listen channel that stop button is clicked 
+			//and add empty frame for preview
+			/*
+				width := 640
+				height := 480
+
+				frame := make([]byte, width*height*3)
+			*/
 			if isFaceDetect {
 				frameNumber++
 
