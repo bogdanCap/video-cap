@@ -27,12 +27,14 @@ type VideoControlService struct {
 	faceButtonBorder *canvas.Rectangle
 	moveDetectButton *component.MoveDetectButton
 	moveButtonBorder *canvas.Rectangle
+	virtualCameraButton *widget.Button
 
 	// Video dependencies
 	recorder              recording.Recorder
 	cam                   camera.Camera
 	cameraWorker          *worker.CameraWorker
 	frameProcessingWorker *worker.FrameProcessingWorker
+	virtualCameraWorker   *worker.VirtualCameraWorker
 
 
 	// Runtime state
@@ -44,6 +46,9 @@ type VideoControlService struct {
 	chanIsFaceDetect chan bool
 	chanFaceMotionResultChan chan motiontracker.MotionResult
 
+	// Prevent overlapping virtual-camera button operations.
+	virtualCameraBusy bool
+
 	// Callbacks
 	onStopWindow func()
 }
@@ -53,6 +58,7 @@ func NewVideoControlService(
     cam camera.Camera,
     cameraWorker *worker.CameraWorker,
     frameProcessingWorker *worker.FrameProcessingWorker,
+	virtualCameraWorker *worker.VirtualCameraWorker,
 	onStopWindow func(),
 ) *VideoControlService {
 	videoControlService :=  &VideoControlService{
@@ -60,44 +66,49 @@ func NewVideoControlService(
         cam:                   cam,
         cameraWorker:          cameraWorker,
         frameProcessingWorker: frameProcessingWorker,
+		virtualCameraWorker:   virtualCameraWorker,
 		chanIsFaceDetect: make(chan bool, 1),
 		chanFaceMotionResultChan : make(chan motiontracker.MotionResult),
 		chanIsMoveDetect: make(chan bool, 1), 
 		chanMoveAnableDetect: make(chan bool, 1),
 		onStopWindow: onStopWindow,
 	}
-	//startButton.button = widget.NewButton(
-	//	"Start Video",
-	//	startButton.start,
-	//)
-
+	
 	videoControlService.startButton = component.NewStartButton()
-	videoControlService.startButton.SetOnTapped(videoControlService.Start)
+	videoControlService.startButton.SetOnTapped(videoControlService.start)
 
     videoControlService.stopButton = component.NewStopButton()
-	videoControlService.stopButton.SetOnTapped(videoControlService.Stop)
+	videoControlService.stopButton.SetOnTapped(videoControlService.stop)
 
 	//init border
 	videoControlService.faceButtonBorder = canvas.NewRectangle(color.Transparent)
 	videoControlService.faceDetectButton = component.NewFaceDetectButton()
-	videoControlService.faceDetectButton.SetOnTapped(videoControlService.ToggleFaceDetection)
+	videoControlService.faceDetectButton.SetOnTapped(videoControlService.toggleFaceDetection)
 
 	videoControlService.moveButtonBorder = canvas.NewRectangle(color.Transparent)
 	videoControlService.moveDetectButton = component.NewMoveDetectButton()
-	videoControlService.moveDetectButton.SetOnTapped(videoControlService.ToggleMoveDetection)
+	videoControlService.moveDetectButton.SetOnTapped(videoControlService.toggleMoveDetection)
 
     videoControlService.stopButton.Hide()
+
+	// This button controls only virtual-camera output.
+	videoControlService.virtualCameraButton = widget.NewButton(
+		"Start Virtual Camera",
+		videoControlService.toggleVirtualCamera,
+	)
+	videoControlService.virtualCameraButton.Disable()
 
 	return videoControlService
 	
 }
 
-func (s *VideoControlService) Start() {
+func (s *VideoControlService) start() {
 	
 	log.Println("Starting camera...")
 
 	s.startButton.Hide()
 	s.stopButton.Show()
+	s.virtualCameraButton.Enable()
 
 	//TODO move to private method
 	// Start FFmpeg.
@@ -145,6 +156,15 @@ func (s *VideoControlService) Start() {
 	 // Start preview and recording workers.
 	 //TODO maybe better - face motion goroutines move to frameProcessingWorker
 	s.frameProcessingWorker.Run(ctx, s.chanFaceMotionResultChan, s.chanIsMoveDetect, s.chanMoveAnableDetect)
+
+	// Start the virtual-camera worker loop.
+	// This loop consumes frames, but FFmpeg remains stopped until
+	// the user clicks Start Virtual Camera.
+	//TODO move to frameProcessingWorker or do not need 
+	go s.virtualCameraWorker.Run(
+		ctx,
+		s.frameProcessingWorker.VirtualCameraFrames(),
+	)
 		
 	// Receive frames from CameraWorker
 	// and send them to FrameProcessingWorker.
@@ -153,7 +173,7 @@ func (s *VideoControlService) Start() {
 	}()
 }
 
-func (s *VideoControlService) Stop() {
+func (s *VideoControlService) stop() {
 	//TODO need to add channel to send bool value that user click on stop button - to add empty frame into preview
     log.Println("Stopping camera...")
 
@@ -184,6 +204,14 @@ func (s *VideoControlService) Stop() {
 	// Wait until frame processing has completely stopped.
 	s.frameProcessingWorker.Wait()
 
+	//instead recorder.Stop()
+	/* check this
+	// Stop recording after the processing workers have finished.
+		if err := s.frameProcessingWorker.StopRecording(); err != nil {
+			log.Printf("recorder stop: %v", err)
+		}
+	*/
+
 	// Stop recorder after recording worker has finished.
 	if err := s.recorder.Stop(); err != nil {
 		log.Println("recorder stop:", err)
@@ -199,6 +227,10 @@ func (s *VideoControlService) Stop() {
 	if s.isMoveDetect {
 		s.stopButton.Hide()
 		s.startButton.Show()
+
+		//virtual cam logic
+		s.virtualCameraButton.SetText("Start Virtual Camera")
+		s.virtualCameraButton.Disable()
 	}
 }
 
@@ -212,6 +244,11 @@ func (s *VideoControlService) stopRecording() {
 	s.frameProcessingWorker.Wait()
 
 	if s.recorder.IsRunning() {
+		/*TODO recorder.Stop() replace with ->
+		if err := s.frameProcessingWorker.StopRecording(); err != nil {
+			log.Printf("recorder stop: %v", err)
+		}
+		*/
 		if err := s.recorder.Stop(); err != nil {
 			log.Println("recorder stop:", err)
 		}
@@ -335,7 +372,7 @@ func (s *VideoControlService) motionHandler(cancelContext context.Context) {
 	}(cancelContext)
 }
 
-func (s *VideoControlService) ToggleFaceDetection() {
+func (s *VideoControlService) toggleFaceDetection() {
 	s.isFaceDetect = !s.isFaceDetect
 
 	if s.isFaceDetect {
@@ -363,7 +400,7 @@ func (s *VideoControlService) ToggleFaceDetection() {
 	}
 }
 
-func (s *VideoControlService) ToggleMoveDetection() {
+func (s *VideoControlService) toggleMoveDetection() {
 	s.isMoveDetect = !s.isMoveDetect
 
 	if s.isMoveDetect {
@@ -371,7 +408,7 @@ func (s *VideoControlService) ToggleMoveDetection() {
 		s.moveButtonBorder.StrokeWidth = 3
 
 		//run preview and video record
-		s.Start()
+		s.start()
 	} else {
 		s.moveButtonBorder.StrokeColor = color.Transparent
 		s.moveButtonBorder.StrokeWidth = 0
@@ -390,6 +427,76 @@ func (s *VideoControlService) ToggleMoveDetection() {
 	}
 }
 
+// toggleVirtualCamera toggles only virtual-camera output.
+// toggleVirtualCamera toggles only virtual-camera output.
+// The normal camera pipeline continues regardless of this button's state.
+func (s *VideoControlService) toggleVirtualCamera() {
+	/*
+	s.stateMu.Lock()
+
+	if !s.isStarted || s.isStopping || s.virtualCameraBusy {
+		s.stateMu.Unlock()
+		return
+	}*/
+
+	s.virtualCameraBusy = true
+	//s.virtualCameraButton.Disable()
+
+	//s.stateMu.Unlock()
+
+	if s.virtualCameraWorker.Enabled() {
+		go func() {
+			err := s.virtualCameraWorker.StopOutput()
+
+			if err != nil {
+				log.Printf("stop virtual camera: %v", err)
+			}
+
+			fyne.Do(func() {
+
+				//s.stateMu.Lock()
+				s.virtualCameraBusy = false
+				//isStarted := s.isStarted && !s.isStopping
+				//s.stateMu.Unlock()
+
+				s.virtualCameraButton.SetText("Start Virtual Camera")
+
+				//if isStarted {
+				s.virtualCameraButton.Enable()
+				//}
+			})
+		}()
+
+		return
+	}
+
+	go func() {
+		//TODO this logic i think better to move into worker
+		err := s.virtualCameraWorker.StartOutput()
+
+		if err != nil {
+			log.Printf("start virtual camera: %v", err)
+		}
+
+		fyne.Do(func() {
+			//s.stateMu.Lock()
+			s.virtualCameraBusy = false
+			//isStarted := s.isStarted && !s.isStopping
+			//s.stateMu.Unlock()
+
+			if err != nil {
+				s.virtualCameraButton.SetText("Start Virtual Camera")
+			} else {
+				s.virtualCameraButton.SetText("Stop Virtual Camera")
+			}
+
+			//if isStarted {
+			s.virtualCameraButton.Enable()
+			//}
+		})
+	}()
+}
+
 func (c *VideoControlService) Buttons() fyne.CanvasObject {
     faceDetectButtonContainer := container.NewStack(
 		c.faceButtonBorder,
@@ -403,6 +510,7 @@ func (c *VideoControlService) Buttons() fyne.CanvasObject {
 	return container.NewHBox(
 		c.startButton.GetButton(),
 		c.stopButton.GetButton(),
+		c.virtualCameraButton,
 		faceDetectButtonContainer,
 		moveDetectButtonContainer,
 	)

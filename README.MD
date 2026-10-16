@@ -116,3 +116,41 @@ FrameProcessingWorker
       ├── previewChan ──> previewWorker()
       │
       └── recordingChan -> recordingWorker()
+
+
+
+
+
+Virtual camera logic:
+    sudo apt install v4l2loopback-dkms v4l2loopback-utils
+    sudo modprobe v4l2loopback devices=1 video_nr=2 card_label="Go Virtual Camera" exclusive_caps=1
+
+    this create virtual device - /dev/video2
+    and now we can run logic for virtual device stream
+
+
+USB Camera
+    |
+    v
+CameraWorker
+    |
+    v
+FrameProcessingWorker.PushJob()
+    |
+    +----> previewChan ------> previewWorker
+    |
+    +----> recordingChan ----> recordingWorker
+    |
+    +----> faceMotionChan ---> motionTrackerWorker
+    |
+    +----> virtualCameraChan -> VirtualCameraWorker
+                                    |
+                                    | Only when enabled
+                                    v
+                              FFmpeg stdin
+                                    |
+                                    v
+                               /dev/video2
+                                    |
+                                    v
+                              Google Meet

@@ -24,6 +24,7 @@ type FrameProcessingWorker struct {
 	previewChan   chan []byte
 	recordingChan chan []byte
 	faceMotionChan chan []byte//chan detection.Face
+	virtualCameraChan chan []byte
 
 	wg sync.WaitGroup
 	//protect from - two goroutines could write to the same FFmpeg stdin at the same time.
@@ -48,7 +49,13 @@ func NewFrameProcessingWorker(
 
 		faceMotionChan: make(chan []byte, 1),
 
+		virtualCameraChan: make(chan []byte, 1),
 	}
+}
+
+// VirtualCameraFrames exposes a receive-only channel to the virtual camera worker.
+func (w *FrameProcessingWorker) VirtualCameraFrames() <-chan []byte {
+	return w.virtualCameraChan
 }
 
 func (w *FrameProcessingWorker) Run(
@@ -136,6 +143,13 @@ func (w *FrameProcessingWorker) PushJob(
 			case w.faceMotionChan <- frame:
 			case <-ctx.Done():
 				return
+			}
+
+			// Virtual camera has its own channel.
+			// Don't block the main pipeline if FFmpeg is slow or disabled.
+			select {
+			case w.virtualCameraChan <- frame:
+			default:
 			}
 		}
 	}
@@ -313,6 +327,31 @@ func (w *FrameProcessingWorker) recordingWorker(
 	}
 }
 
+/*
+// StartRecording serializes recorder startup with frame writes.
+func (w *FrameProcessingWorker) StartRecording() error {
+	w.recordingMu.Lock()
+	defer w.recordingMu.Unlock()
+
+	if w.recorder.IsRunning() {
+		return nil
+	}
+
+	return w.recorder.Start()
+}
+
+// StopRecording stops only the recorder, not the camera or processing workers.
+func (w *FrameProcessingWorker) StopRecording() error {
+	w.recordingMu.Lock()
+	defer w.recordingMu.Unlock()
+
+	if !w.recorder.IsRunning() {
+		return nil
+	}
+
+	return w.recorder.Stop()
+}*/
+
 
 func (w *FrameProcessingWorker) motionTrackerWorker(
 	ctx context.Context,
@@ -405,6 +444,10 @@ func (w *FrameProcessingWorker) writeFrame(frame []byte) error {
 	// protect from - two goroutines could write to the same FFmpeg stdin at the same time.
 	w.recordingMu.Lock()
 	defer w.recordingMu.Unlock()
+
+	//if !w.recorder.IsRunning() {
+	//	return nil
+	//}
 
 	return w.recorder.WriteFrame(frame)
 }

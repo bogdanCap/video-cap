@@ -9,15 +9,7 @@ type StopButton struct {
 	button      *widget.Button
 }
 
-func NewStopButton(
-	/*
-    recorder recording.Recorder,
-    cam camera.Camera,
-    cameraWorker *worker.CameraWorker,
-    frameProcessingWorker *worker.FrameProcessingWorker,
-	onStopWindow func(),*/
-	//videoControlService *service.VideoControlService,
-) *StopButton {
+func NewStopButton() *StopButton {
 	stopButton :=  &StopButton{}
 	stopButton.button = &widget.Button{
 		Text: "stop",
@@ -42,7 +34,3 @@ func (d *StopButton) Show() {
 func (d *StopButton) GetButton() *widget.Button {
 	return d.button
 }
-
-
-//func (startButton *StartButton) start() {
-//}

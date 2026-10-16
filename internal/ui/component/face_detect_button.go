@@ -10,15 +10,7 @@ type FaceDetectButton struct {
 }
 
 
-func NewFaceDetectButton(
-	/*
-    recorder recording.Recorder,
-    cam camera.Camera,
-    cameraWorker *worker.CameraWorker,
-    frameProcessingWorker *worker.FrameProcessingWorker,
-	onStopWindow func(),*/
-	//videoControlService *service.VideoControlService,
-) *FaceDetectButton {
+func NewFaceDetectButton() *FaceDetectButton {
 	button :=  &FaceDetectButton{}
 	button.button = &widget.Button{
 		Text: "face detect",
@@ -31,19 +23,8 @@ func NewFaceDetectButton(
 func (d *FaceDetectButton) SetOnTapped(onTapped func()) {
 	d.button.OnTapped = onTapped
 }
-/*
-func (d *FaceDetectButton) Hide() {
-	d.button.Hide()
-}
 
-func (d *FaceDetectButton) Show() {
-	d.button.Show()
-}
-*/
 func (d *FaceDetectButton) GetButton() *widget.Button {
 	return d.button
 }
 
-
-//func (startButton *StartButton) start() {
-//}

@@ -9,15 +9,7 @@ type StartButton struct {
 	button      *widget.Button
 }
 
-func NewStartButton(
-	/*
-    recorder recording.Recorder,
-    cam camera.Camera,
-    cameraWorker *worker.CameraWorker,
-    frameProcessingWorker *worker.FrameProcessingWorker,
-	onStopWindow func(),*/
-	//videoControlService *service.VideoControlService,
-) *StartButton {
+func NewStartButton() *StartButton {
 	startButton :=  &StartButton{}
 	
 	startButton.button = &widget.Button{
@@ -43,7 +35,3 @@ func (d *StartButton) Show() {
 func (d *StartButton) GetButton() *widget.Button {
 	return d.button
 }
-
-
-//func (startButton *StartButton) start() {
-//}

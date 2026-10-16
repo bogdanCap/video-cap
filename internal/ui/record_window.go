@@ -11,6 +11,7 @@ import (
 	//"github.com/bogdanCap/video-cap/internal/facemove"
 	"github.com/bogdanCap/video-cap/internal/worker"
 	"github.com/bogdanCap/video-cap/internal/service"
+	"github.com/bogdanCap/video-cap/internal/virtualcamera"
 
 )
 
@@ -32,22 +33,21 @@ func NewUIService(
 		"USB Camera",
 	)
 
-	/*
-	videoControls := NewVideoControl(
-        recorder,
-        cam,
-        cameraWorker,
-        frameProcessingWorker,
-		//callback to stop fyne window
-		func() {
-			myWindow.Close()
-		},
-    )*/
+	virtualCamera := virtualcamera.NewFFmpegVirtualCamera(
+		"/dev/video2",
+		640,
+		480,
+		30,
+	)
+
+	virtualCameraWorker := worker.NewVirtualCameraWorker(virtualCamera)
+
 	videoControlService := service.NewVideoControlService(
 		recorder,
         cam,
         cameraWorker,
         frameProcessingWorker,
+		virtualCameraWorker,
 		//callback to stop fyne window
 		func() {
 			myWindow.Close()
