@@ -1,11 +1,11 @@
 package detection
 
 import (
-	"bytes"
+	//"bytes"
 	"image"
 	"image/color"
-	"image/jpeg"
-	_ "image/jpeg"
+	//"image/jpeg"
+	//_ "image/jpeg"
 	"os"
 
 	"github.com/esimov/pigo/core"
@@ -38,14 +38,16 @@ func NewFaceDetector(cascadePath string) (*FaceDetector, error) {
 	return &FaceDetector{classifier: classifier}, nil
 }
 
-func (fd *FaceDetector) Detect(frame []byte) ([]Face, error) {
+func (fd *FaceDetector) Detect(img image.Image, origWidth int, origHeight int, targetWidth int, targetHeight int) ([]Face, error) {
 
+	/* this logic reduce image - i moved it to another package
 	img, _, err := image.Decode(bytes.NewReader(frame))
 	if err != nil {
 		return nil, err
-	}
+	}*/
 
 	//return origin image resolution
+	/*
 	origBounds := img.Bounds()
 	origWidth := origBounds.Dx()
 	origHeight := origBounds.Dy()
@@ -54,9 +56,18 @@ func (fd *FaceDetector) Detect(frame []byte) ([]Face, error) {
 	targetHeight := (origHeight * targetWidth) / origWidth
 
 	smallImg := image.NewRGBA(image.Rect(0, 0, targetWidth, targetHeight))
-	draw.NearestNeighbor.Scale(smallImg, smallImg.Bounds(), img, origBounds, draw.Src, nil)
+	draw.NearestNeighbor.Scale(
+		smallImg, 
+		smallImg.Bounds(), 
+		img, 
+		origBounds, 
+		draw.Src, 
+		nil,
+	)
 
 	pixels := fd.rgbaToGrayscale(smallImg, targetWidth, targetHeight)
+	*/
+	pixels := fd.rgbaToGrayscale(img, targetWidth, targetHeight)
 
 	cParams := pigo.CascadeParams{
 		MinSize:     30,
@@ -119,11 +130,12 @@ func (fd *FaceDetector) Detect(frame []byte) ([]Face, error) {
 }
 
 // DrawFaces takes the original frame and a slice of Face structs
-func (fd *FaceDetector) DrawFaces(frame []byte, faces []Face) ([]byte, error) {
-	img, _, err := image.Decode(bytes.NewReader(frame))
+func (fd *FaceDetector) DrawFaces(img image.Image, faces []Face) (image.Image/*[]byte*/, error) {
+	
+	/*img, _, err := image.Decode(bytes.NewReader(frame))
 	if err != nil {
 		return nil, err
-	}
+	}*/
 
 	bounds := img.Bounds()
 	rgbaImg := image.NewRGBA(bounds)
@@ -135,13 +147,49 @@ func (fd *FaceDetector) DrawFaces(frame []byte, faces []Face) ([]byte, error) {
 		fd.drawBox(rgbaImg, f, green)
 	}
 
+	return rgbaImg, nil
+	/*
 	var outBuf bytes.Buffer
-	err = jpeg.Encode(&outBuf, rgbaImg, &jpeg.Options{Quality: 90})
+	err := jpeg.Encode(&outBuf, rgbaImg, &jpeg.Options{Quality: 90})
 	if err != nil {
 		return nil, err
 	}
 
-	return outBuf.Bytes(), nil
+	return outBuf.Bytes(), nil*/
+}
+
+func ScaleFaces(
+	faces []Face,
+	smallWidth int,
+	smallHeight int,
+	originalWidth int,
+	originalHeight int,
+	mirrored bool,
+) []Face {
+	scaleX := float64(originalWidth) / float64(smallWidth)
+	scaleY := float64(originalHeight) / float64(smallHeight)
+
+	scaledFaces := make([]Face, 0, len(faces))
+
+	for _, face := range faces {
+		x := int(float64(face.X) * scaleX)
+		y := int(float64(face.Y) * scaleY)
+		width := int(float64(face.Width) * scaleX)
+		height := int(float64(face.Height) * scaleY)
+
+		if mirrored {
+			x = originalWidth - x - width
+		}
+
+		scaledFaces = append(scaledFaces, Face{
+			X:      x,
+			Y:      y,
+			Width:  width,
+			Height: height,
+		})
+	}
+
+	return scaledFaces
 }
 
 func (fd *FaceDetector) rgbaToGrayscale(img image.Image, width, height int) []uint8 {

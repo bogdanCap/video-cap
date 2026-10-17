@@ -150,6 +150,7 @@ func (w *FrameProcessingWorker) PushJob(
 			select {
 			case w.virtualCameraChan <- frame:
 			default:
+				// Drop frame
 			}
 		}
 	}

@@ -103,27 +103,43 @@ v4l.Capture()
 
 Video goroutines schematic:
 
-CameraWorker
-    Run()
-      │
-      ▼
-  frameChan
-      │
-      ▼
-FrameProcessingWorker
-  ProduceFrames()
-      │
-      ├── previewChan ──> previewWorker()
-      │
-      └── recordingChan -> recordingWorker()
-
-
+                USB Camera
+                      |
+                      v
+                 Read Frame
+                      |
+                      v
+             FrameProcessingWorker
+                      |
+             +--------+--------+
+             |        |        |
+             v        v        v
+          Flip      Detect    Draw
+          Frame      Face     Face
+             |        |        |
+             +--------+--------+
+                      |
+                      v
+              Processed Frame
+                      |
+               +------+------+
+               |             |
+               v             v
+         Preview Channel  Recording Channel
+               |             |
+               v             v
+         Preview Worker  Recording Worker
+               |             |
+               v             v
+           Fyne UI       FFmpeg/MP4
 
 
 
 Virtual camera logic:
     sudo apt install v4l2loopback-dkms v4l2loopback-utils
     sudo modprobe v4l2loopback devices=1 video_nr=2 card_label="Go Virtual Camera" exclusive_caps=1
+
+    v4l2-ctl --list-devices - check if device exists
 
     this create virtual device - /dev/video2
     and now we can run logic for virtual device stream

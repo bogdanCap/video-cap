@@ -1,9 +1,20 @@
 package detection
 
+import (
+	"image"
+)
+
 type Detector interface {
-	Detect(frame []byte) ([]Face, error)
+	Detect(img image.Image, origWidth int, origHeight int, targetWidth int, targetHeight int) ([]Face, error)
 	DrawFaces(
-		frame []byte,
+		img image.Image,
 		faces []Face,
-	) ([]byte, error)
+	) (image.Image, error)
+	/*ScaleFaces(
+		faces []Face,
+		smallWidth int,
+		smallHeight int,
+		originalWidth int,
+		originalHeight int,
+	) []Face*/
 }

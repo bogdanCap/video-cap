@@ -4,6 +4,9 @@ import (
 	"context"
 	"log"
 	"sync"
+	"image/jpeg"
+	"bytes"
+	//"fmt"
 
 	"github.com/bogdanCap/video-cap/internal/camera"
 	"github.com/bogdanCap/video-cap/internal/detection"
@@ -42,7 +45,6 @@ func (w *CameraWorker) Run(ctx context.Context, chanIsFaceDetect <-chan bool) (<
 		)
 
 		for {
-			
 			select {
 			case <-ctx.Done():
 				log.Println("camera worker stopped")
@@ -53,7 +55,9 @@ func (w *CameraWorker) Run(ctx context.Context, chanIsFaceDetect <-chan bool) (<
 			default:
 			}
 
-			frame, err := w.cam.Read()
+			rawFrame, err := w.cam.Read()
+
+			frameNumber++
 
 			if err != nil {
 				//log.Println("camera read:", err)
@@ -68,6 +72,26 @@ func (w *CameraWorker) Run(ctx context.Context, chanIsFaceDetect <-chan bool) (<
 				return
 			}
 
+			imgFrame, err := jpeg.Decode(bytes.NewReader(rawFrame))
+
+			if err != nil {
+				log.Println("decode JPEG frame: %w", err)
+
+				return
+			}
+
+			reduceFrame, origWidth, origHeight, targetWidth, targetHeight := camera.ReduceImage(imgFrame, 640)
+
+			flipFrame, flipError := camera.FlipImage(reduceFrame)
+			//flipFrame := reduceFrame
+
+			
+			if flipError != nil {
+				log.Println("camera frame flip: ", err)
+				
+				return
+			}
+			
 			//TODO add select to listen channel that stop button is clicked 
 			//and add empty frame for preview
 			/*
@@ -76,13 +100,24 @@ func (w *CameraWorker) Run(ctx context.Context, chanIsFaceDetect <-chan bool) (<
 
 				frame := make([]byte, width*height*3)
 			*/
-			if isFaceDetect {
-				frameNumber++
+			if isFaceDetect && frameNumber%2 == 0 {
 
 				// Detect face every 5th frame.
-				faces, err := w.detector.Detect(frame)
+				faces, err := w.detector.Detect(flipFrame, origWidth, origHeight, targetWidth, targetHeight)
 
 				//var face *detection.Face
+
+				//if i need to draw face in origin image
+				/*
+				faces = detection.ScaleFaces(
+					faces,
+					targetWidth, 
+					targetHeight,
+					origWidth, 
+					origHeight,
+					true, // Mirror face coordinates.
+				)
+				*/
 
 				if err != nil {
 					log.Println("face detection:", err)
@@ -115,9 +150,8 @@ func (w *CameraWorker) Run(ctx context.Context, chanIsFaceDetect <-chan bool) (<
 				// Draw the last detected face.
 				if lastFace != nil {
 				//if face != nil {
-					frame, err = w.detector.DrawFaces(
-						frame,
-						//[]detection.Face{*face},
+					flipFrame, err = w.detector.DrawFaces(
+						flipFrame,
 						[]detection.Face{*lastFace},
 					)
 
@@ -128,9 +162,26 @@ func (w *CameraWorker) Run(ctx context.Context, chanIsFaceDetect <-chan bool) (<
 				}
 			}
 
+			if frameNumber == 10 {
+				frameNumber = 0
+			}
+
+			var outBuf bytes.Buffer
+			completFrameByteErr := jpeg.Encode(&outBuf, flipFrame, &jpeg.Options{Quality: 90})
+
+			if completFrameByteErr != nil {
+				log.Println("camera frame flip convert to byte: ", completFrameByteErr)
+				
+				return
+			}
+
+			completeFrame := outBuf.Bytes()
+
+			//return outBuf.Bytes(), nil
+
 			// Send frame to the channel.
 			select {
-			case frameChan <- frame:
+			case frameChan <- completeFrame:
 			//case faceImageChan <- *lastFace:	
 
 			case <-ctx.Done():
