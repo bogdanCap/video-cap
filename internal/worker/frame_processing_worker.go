@@ -241,7 +241,6 @@ func (w *FrameProcessingWorker) recordingWorker(
 		moveDetectAnabled bool
 	)
 
-	
 	for {
 		select {
 		case isMoveDetected = <-chanIsMoveDetect:

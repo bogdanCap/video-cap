@@ -7,6 +7,7 @@ import (
 	//"image/jpeg"
 	//_ "image/jpeg"
 	"os"
+	"log"
 
 	"github.com/esimov/pigo/core"
 	"golang.org/x/image/draw"
@@ -38,7 +39,7 @@ func NewFaceDetector(cascadePath string) (*FaceDetector, error) {
 	return &FaceDetector{classifier: classifier}, nil
 }
 
-func (fd *FaceDetector) Detect(img image.Image, origWidth int, origHeight int, targetWidth int, targetHeight int) ([]Face, error) {
+func (fd *FaceDetector) Detect(img image.Image/*, origWidth int, origHeight int, targetWidth int, targetHeight int*/) ([]Face, error) {
 
 	/* this logic reduce image - i moved it to another package
 	img, _, err := image.Decode(bytes.NewReader(frame))
@@ -67,7 +68,14 @@ func (fd *FaceDetector) Detect(img image.Image, origWidth int, origHeight int, t
 
 	pixels := fd.rgbaToGrayscale(smallImg, targetWidth, targetHeight)
 	*/
-	pixels := fd.rgbaToGrayscale(img, targetWidth, targetHeight)
+
+	//this do not need if i reduce image size in logic camera.ReduceImage(imgFrame, 640)
+	//i get this from method parameter
+	origBounds := img.Bounds()
+	origWidth := origBounds.Dx()
+	origHeight := origBounds.Dy()
+
+	pixels := fd.rgbaToGrayscale(img, origWidth, origHeight)
 
 	cParams := pigo.CascadeParams{
 		MinSize:     30,
@@ -76,9 +84,9 @@ func (fd *FaceDetector) Detect(img image.Image, origWidth int, origHeight int, t
 		ShiftFactor: 0.1,
 		ImageParams: pigo.ImageParams{
 			Pixels: pixels,
-			Rows:   targetHeight,
-			Cols:   targetWidth,
-			Dim:    targetWidth,
+			Rows:   origHeight,
+			Cols:   origWidth,
+			Dim:    origWidth,
 		},
 	}
 
@@ -90,20 +98,30 @@ func (fd *FaceDetector) Detect(img image.Image, origWidth int, origHeight int, t
 
 	faces = fd.classifier.ClusterDetections(faces, 0.2)
 
+	/* this need if i reduce image size in logic camera.ReduceImage(imgFrame, 640)
 	scaleX := float64(origWidth) / float64(targetWidth)
 	scaleY := float64(origHeight) / float64(targetHeight)
+	*/
+	scaleX := 1.0 //float64(origWidth) / float64(targetWidth)
+	scaleY := 1.0 //float64(origHeight) / float64(targetHeight)
 
+	//faceSquareScale := 1.0 // if reduce this value need to reduce variable minFaceWidth to show this
 	minFaceWidth := 150 
 	var detectedFaces []Face
 
 	for _, face := range faces {
+		//logic with rectangle
+		/*
 		if face.Q > 5.0 {
 			radius := face.Scale / 2
 			
 			smallX := face.Col - radius
 			smallY := face.Row - radius
-			smallW := face.Scale
-			smallH := face.Scale
+			// Increase the square diameter.
+    		smallW := int(float64(face.Scale) * faceSquareScale)
+    		smallH := int(float64(face.Scale) * faceSquareScale)
+			//smallW := face.Scale
+			//smallH := face.Scale
 
 			// Map coordinates back up to full-scale size
 			fullWidth := int(float64(smallW) * scaleX)
@@ -123,7 +141,32 @@ func (fd *FaceDetector) Detect(img image.Image, origWidth int, origHeight int, t
 
 			//only need 1 face object
 			break
+		}*/
+
+		//logic with face detection option 2
+		if face.Q <= 5.0 {
+			continue
 		}
+
+		fullWidth := int(float64(face.Scale) * scaleX)
+
+		if fullWidth < minFaceWidth {
+			continue
+		}
+
+		radius := face.Scale / 2
+
+		smallX := face.Col - radius
+		smallY := face.Row - radius
+
+		detectedFaces = append(detectedFaces, Face{
+			X:      int(float64(smallX) * scaleX),
+			Y:      int(float64(smallY) * scaleY),
+			Width:  int(float64(face.Scale) * scaleX),
+			Height: int(float64(face.Scale) * scaleY),
+		})
+
+		break // Only one face.
 	}
 
 	return detectedFaces, nil
@@ -131,11 +174,7 @@ func (fd *FaceDetector) Detect(img image.Image, origWidth int, origHeight int, t
 
 // DrawFaces takes the original frame and a slice of Face structs
 func (fd *FaceDetector) DrawFaces(img image.Image, faces []Face) (image.Image/*[]byte*/, error) {
-	
-	/*img, _, err := image.Decode(bytes.NewReader(frame))
-	if err != nil {
-		return nil, err
-	}*/
+	/* logic to draw rectangle
 
 	bounds := img.Bounds()
 	rgbaImg := image.NewRGBA(bounds)
@@ -148,14 +187,70 @@ func (fd *FaceDetector) DrawFaces(img image.Image, faces []Face) (image.Image/*[
 	}
 
 	return rgbaImg, nil
-	/*
-	var outBuf bytes.Buffer
-	err := jpeg.Encode(&outBuf, rgbaImg, &jpeg.Options{Quality: 90})
-	if err != nil {
-		return nil, err
+	*/
+
+	bounds := img.Bounds()
+
+	rgbaImg := image.NewRGBA(bounds)
+	draw.Draw(rgbaImg, bounds, img, bounds.Min, draw.Src)
+
+	green := color.RGBA{R: 0, G: 255, B: 0, A: 255}
+	crossSize := 10
+
+	for _, f := range faces {
+		// Face center in image coordinates.
+		centerX := bounds.Min.X + f.X + f.Width/2
+		centerY := bounds.Min.Y + f.Y + f.Height/2
+
+		log.Printf(
+			"Drawing cross: center=(%d,%d), image bounds=%v",
+			centerX, centerY, bounds,
+		)
+
+		for i := -crossSize; i <= crossSize; i++ {
+			// Horizontal line.
+			x := centerX + i
+			if image.Pt(x, centerY).In(bounds) {
+				rgbaImg.SetRGBA(x, centerY, green)
+			}
+
+			// Vertical line.
+			y := centerY + i
+			if image.Pt(centerX, y).In(bounds) {
+				rgbaImg.SetRGBA(centerX, y, green)
+			}
+		}
 	}
 
-	return outBuf.Bytes(), nil*/
+	return rgbaImg, nil
+}
+
+func (fd *FaceDetector) drawLine(
+	img *image.RGBA,
+	x1, y1, x2, y2 int,
+	lineWidth int,
+	c color.RGBA,
+) {
+	bounds := img.Bounds()
+	halfWidth := lineWidth / 2
+
+	// Horizontal line.
+	for x := x1; x <= x2; x++ {
+		for y := y1 - halfWidth; y <= y1+halfWidth; y++ {
+			if image.Pt(x, y).In(bounds) {
+				img.SetRGBA(x, y, c)
+			}
+		}
+	}
+
+	// Vertical line.
+	for y := y1; y <= y2; y++ {
+		for x := x1 - halfWidth; x <= x1+halfWidth; x++ {
+			if image.Pt(x, y).In(bounds) {
+				img.SetRGBA(x, y, c)
+			}
+		}
+	}
 }
 
 func ScaleFaces(

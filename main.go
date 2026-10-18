@@ -21,13 +21,15 @@ const (
 
 	// Camera configuration.
 	//SD (480p): 640 × 480
+	//           800 × 600
+	//           1024 × 768
 	//HD (720p): 1280 × 720
 	//Full HD (1080p): 1920 × 1080
 	//QHD / 2K (1440p): 2560 × 1440
 	cameraWidth  = 640
 	cameraHeight = 480
-	detectionWidth = 640
-	detectionHeight = 360
+	//detectionWidth = 640
+	//detectionHeight = 360
 	cameraFPS    = 30
 
 	// Saved video configuration.

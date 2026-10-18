@@ -5,7 +5,7 @@ import (
 )
 
 type Detector interface {
-	Detect(img image.Image, origWidth int, origHeight int, targetWidth int, targetHeight int) ([]Face, error)
+	Detect(img image.Image/*, origWidth int, origHeight int, targetWidth int, targetHeight int*/) ([]Face, error)
 	DrawFaces(
 		img image.Image,
 		faces []Face,
