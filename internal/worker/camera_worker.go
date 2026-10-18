@@ -44,7 +44,7 @@ func (w *CameraWorker) Run(ctx context.Context, chanIsFaceDetect <-chan bool) (<
 			isFaceDetect bool
 		)
 
-		faceDetectionTicker := time.NewTicker(200 * time.Millisecond)
+		faceDetectionTicker := time.NewTicker(100 * time.Millisecond)
 		defer faceDetectionTicker.Stop()
 
 		for {

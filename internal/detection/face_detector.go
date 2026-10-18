@@ -7,7 +7,6 @@ import (
 	//"image/jpeg"
 	//_ "image/jpeg"
 	"os"
-	"log"
 
 	"github.com/esimov/pigo/core"
 	"golang.org/x/image/draw"
@@ -202,11 +201,6 @@ func (fd *FaceDetector) DrawFaces(img image.Image, faces []Face) (image.Image/*[
 		centerX := bounds.Min.X + f.X + f.Width/2
 		centerY := bounds.Min.Y + f.Y + f.Height/2
 
-		log.Printf(
-			"Drawing cross: center=(%d,%d), image bounds=%v",
-			centerX, centerY, bounds,
-		)
-
 		for i := -crossSize; i <= crossSize; i++ {
 			// Horizontal line.
 			x := centerX + i
@@ -225,6 +219,7 @@ func (fd *FaceDetector) DrawFaces(img image.Image, faces []Face) (image.Image/*[
 	return rgbaImg, nil
 }
 
+/*
 func (fd *FaceDetector) drawLine(
 	img *image.RGBA,
 	x1, y1, x2, y2 int,
@@ -251,7 +246,7 @@ func (fd *FaceDetector) drawLine(
 			}
 		}
 	}
-}
+}*/
 
 func ScaleFaces(
 	faces []Face,
