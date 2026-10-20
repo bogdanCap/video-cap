@@ -168,8 +168,12 @@ func (s *VideoControlService) start() {
 		
 	// Receive frames from CameraWorker
 	// and send them to FrameProcessingWorker.
+	// this helps ti speed up - frame push to another channel in another goroutines and this helps to works faster
+	// i try to delete this and pass frameChan directly to frameProcessingWorker.Run() and its works slower
+	// push push values to ther goroutines inside frameProcessingWorker.Run()
+	//TODO попробывать запустить этот метод в frameProcessingWorker.Run после goroutines + вместо 3-х каналов попробывать использовать 1
 	go func() {
-		s.frameProcessingWorker.PushJob(ctx, frameChan/*, faceImage*/)		
+		s.frameProcessingWorker.PushJob(ctx, frameChan)		
 	}()
 }
 

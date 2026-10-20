@@ -64,44 +64,24 @@ func (w *FrameProcessingWorker) Run(
 	isMoveDetectChan <-chan bool,
 	moveAnableDetectChan <-chan bool,
 ) {
-	//listening channel i run logic
-	/**TODO wg.ADD replace with (and defer do not need) + tested how its works
-	 wg.Go(func() {}
-
-	 workersList := []func(context.Context){
-		worker.ProcessData, // Element 1
-		worker.LogAction,   // Element 2
+	workersList := []func(){
+	    func() {
+		    w.previewWorker(ctx)
+	    },
+	    func() {
+		    w.recordingWorker(ctx, isMoveDetectChan, moveAnableDetectChan)
+	    },
+	    func() {
+		    w.motionTrackerWorker(ctx, motionTrackingResultChan)
+		},
 	}
 
-	// Loop through the array and call each method
 	for _, worker := range workersList {
-		wg.Go(func() {
-			worker(ctx)
+		//run goroutins with wg.Add and wg.Done
+		w.wg.Go(func() {
+			worker()
 		})
 	}
-	**/
-	
-	w.wg.Add(3)
-	
-	go func() {
-		defer w.wg.Done()
-
-		w.previewWorker(ctx)
-	}()
-
-
-	go func() {
-		defer w.wg.Done()
-
-		w.recordingWorker(ctx, isMoveDetectChan, moveAnableDetectChan)
-	}()
-
-	// face motion
-	go func() {
-		defer w.wg.Done()
-
-		w.motionTrackerWorker(ctx, motionTrackingResultChan)
-	}()
 }
 
 func (w *FrameProcessingWorker) Wait() {
@@ -114,7 +94,6 @@ func (w *FrameProcessingWorker) PushJob(
 	//frame []byte,
 	//faceFrame detection.Face,
 ) {
-	
 	for {
 		select {
 		case <-ctx.Done():
