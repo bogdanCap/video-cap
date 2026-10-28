@@ -36,6 +36,9 @@ run:
     go build -o record
     ./record
 
+    for virtual camera batton and logic:
+        sudo modprobe v4l2loopback devices=1 video_nr=2 card_label="Go Virtual Camera" exclusive_caps=1
+
 Debug video:
     video fpv:
         ffprobe -v error \

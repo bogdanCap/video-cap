@@ -8,11 +8,9 @@ import (
 	"github.com/bogdanCap/video-cap/internal/camera"
 	"github.com/bogdanCap/video-cap/internal/preview"
 	"github.com/bogdanCap/video-cap/internal/recording"
-	//"github.com/bogdanCap/video-cap/internal/facemove"
 	"github.com/bogdanCap/video-cap/internal/worker"
 	"github.com/bogdanCap/video-cap/internal/service"
 	"github.com/bogdanCap/video-cap/internal/virtualcamera"
-
 )
 
 type WindowService struct {
@@ -23,6 +21,7 @@ type WindowService struct {
 func NewUIService(
 	recorder recording.Recorder, 
 	cam camera.Camera,
+	virtualCam virtualcamera.VirtualCamera,
 	frameProcessingWorker *worker.FrameProcessingWorker,
 	cameraWorker *worker.CameraWorker,
 	videoPreview *preview.FynePreview,
@@ -33,14 +32,16 @@ func NewUIService(
 		"USB Camera",
 	)
 
+	//TODO move to main.go + move to const
+	/*
 	virtualCamera := virtualcamera.NewFFmpegVirtualCamera(
 		"/dev/video2",
 		640,
 		480,
 		30,
-	)
+	)*/
 
-	virtualCameraWorker := worker.NewVirtualCameraWorker(virtualCamera)
+	virtualCameraWorker := worker.NewVirtualCameraWorker(virtualCam)
 
 	videoControlService := service.NewVideoControlService(
 		recorder,

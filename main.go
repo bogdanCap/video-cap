@@ -14,10 +14,13 @@ import (
 	"github.com/bogdanCap/video-cap/internal/recording"
 	"github.com/bogdanCap/video-cap/internal/ui"
 	"github.com/bogdanCap/video-cap/internal/worker"
+	"github.com/bogdanCap/video-cap/internal/virtualcamera"
 )
 
 const (
+	//cameraDevice = "/dev/video1"
 	cameraDevice = "/dev/video0"
+	virtualCameraDevice = "/dev/video2"
 
 	// Camera configuration.
 	//SD (480p): 640 × 480
@@ -116,6 +119,13 @@ func main() {
 		motionTracker,
 	)
 
+	virtualCamera := virtualcamera.NewFFmpegVirtualCamera(
+		virtualCameraDevice,
+		cameraWidth,
+		cameraHeight,
+		cameraFPS,
+	)
+
 	// ----------------------------------------
 	// Fyne
 	// ----------------------------------------
@@ -123,6 +133,7 @@ func main() {
 	uiService := ui.NewUIService(
 		recorder, 
 		cam, 
+		virtualCamera,
 		frameProcessingWorker, 
 		cameraWorker, 
 		videoPreview,

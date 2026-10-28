@@ -54,7 +54,7 @@ func NewFrameProcessingWorker(
 }
 
 // VirtualCameraFrames exposes a receive-only channel to the virtual camera worker.
-func (w *FrameProcessingWorker) VirtualCameraFrames() <-chan []byte {
+func (w *FrameProcessingWorker) GetVirtualCameraFrame() <-chan []byte {
 	return w.virtualCameraChan
 }
 

@@ -163,7 +163,7 @@ func (s *VideoControlService) start() {
 	//TODO move to frameProcessingWorker or do not need 
 	go s.virtualCameraWorker.Run(
 		ctx,
-		s.frameProcessingWorker.VirtualCameraFrames(),
+		s.frameProcessingWorker.GetVirtualCameraFrame(),
 	)
 		
 	// Receive frames from CameraWorker

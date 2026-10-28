@@ -44,7 +44,7 @@ func (w *CameraWorker) Run(ctx context.Context, chanIsFaceDetect <-chan bool) (<
 			isFaceDetect bool
 		)
 
-		faceDetectionTicker := time.NewTicker(100 * time.Millisecond)
+		faceDetectionTicker := time.NewTicker(75 * time.Millisecond)
 		defer faceDetectionTicker.Stop()
 
 		for {
@@ -89,7 +89,7 @@ func (w *CameraWorker) Run(ctx context.Context, chanIsFaceDetect <-chan bool) (<
 
 			flipFrame, flipError := camera.FlipImage(imgFrame)
 
-			//flipFrame := reduceFrame
+			//flipFrame := imgFrame
 			
 			if flipError != nil {
 				log.Println("camera frame flip: ", err)
