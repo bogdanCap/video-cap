@@ -1,13 +1,9 @@
 package detection
 
 import (
-	//"bytes"
 	"image"
 	"image/color"
-	//"image/jpeg"
-	//_ "image/jpeg"
 	"os"
-
 	"github.com/esimov/pigo/core"
 	"golang.org/x/image/draw"
 )
@@ -77,7 +73,9 @@ func (fd *FaceDetector) Detect(img image.Image/*, origWidth int, origHeight int,
 	pixels := fd.rgbaToGrayscale(img, origWidth, origHeight)
 
 	cParams := pigo.CascadeParams{
+		//Ignore any face smaller than
 		MinSize:     30,
+		//Ignore any face larger than
 		MaxSize:     600,
 		ScaleFactor: 1.1,
 		ShiftFactor: 0.1,
@@ -95,6 +93,9 @@ func (fd *FaceDetector) Detect(img image.Image/*, origWidth int, origHeight int,
 	// Pass the correct structure and the float64 angle parameter
 	faces := fd.classifier.RunCascade(cParams, angle)
 
+	// iouThreshold - decimal fraction between 0.0 (0% overlap) and 1.0 (100% perfect overlap)
+	// 0.0: The two boxes with face do not touch at all
+	// 1.0: The two boxes match perfectly, corner for corner.
 	faces = fd.classifier.ClusterDetections(faces, 0.2)
 
 	/* this need if i reduce image size in logic camera.ReduceImage(imgFrame, 640)
@@ -143,6 +144,7 @@ func (fd *FaceDetector) Detect(img image.Image/*, origWidth int, origHeight int,
 		}*/
 
 		//logic with face detection option 2
+		//found a potential face - from 0.0 to 10.0 - The code becomes much stricter
 		if face.Q <= 5.0 {
 			continue
 		}
@@ -247,7 +249,7 @@ func (fd *FaceDetector) drawLine(
 		}
 	}
 }*/
-
+/*
 func ScaleFaces(
 	faces []Face,
 	smallWidth int,
@@ -280,7 +282,7 @@ func ScaleFaces(
 	}
 
 	return scaledFaces
-}
+}*/
 
 func (fd *FaceDetector) rgbaToGrayscale(img image.Image, width, height int) []uint8 {
 	gray := make([]uint8, width*height)
@@ -294,6 +296,7 @@ func (fd *FaceDetector) rgbaToGrayscale(img image.Image, width, height int) []ui
 }
 
 // drawBox now cleanly consumes the structured Face model directly
+/*
 func (fd *FaceDetector) drawBox(img *image.RGBA, f Face, col color.Color) {
 	bounds := img.Bounds()
 
@@ -347,7 +350,7 @@ func (fd *FaceDetector) drawBox(img *image.RGBA, f Face, col color.Color) {
 			fd.setPixelSafe(img, rightX, y, bounds, col)
 		}
 	}*/
-}
+/*}*/
 
 /*
 // Helper to safely paint pixels only if they fall inside the valid image canvas bounds

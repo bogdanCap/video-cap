@@ -7,10 +7,13 @@ import (
 	"image/jpeg"
 	"bytes"
 	"time"
-	//"fmt"
 
 	"github.com/bogdanCap/video-cap/internal/camera"
 	"github.com/bogdanCap/video-cap/internal/detection"
+)
+
+const (
+	faceDetectionTickerInterval = 75 * time.Millisecond
 )
 
 type CameraWorker struct {
@@ -44,7 +47,7 @@ func (w *CameraWorker) Run(ctx context.Context, chanIsFaceDetect <-chan bool) (<
 			isFaceDetect bool
 		)
 
-		faceDetectionTicker := time.NewTicker(75 * time.Millisecond)
+		faceDetectionTicker := time.NewTicker(faceDetectionTickerInterval)
 		defer faceDetectionTicker.Stop()
 
 		for {

@@ -32,15 +32,6 @@ func NewUIService(
 		"USB Camera",
 	)
 
-	//TODO move to main.go + move to const
-	/*
-	virtualCamera := virtualcamera.NewFFmpegVirtualCamera(
-		"/dev/video2",
-		640,
-		480,
-		30,
-	)*/
-
 	virtualCameraWorker := worker.NewVirtualCameraWorker(virtualCam)
 
 	videoControlService := service.NewVideoControlService(

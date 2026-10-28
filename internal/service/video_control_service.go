@@ -151,12 +151,14 @@ func (s *VideoControlService) start() {
 
 	// Start camera worker.
 	//chanIsFaceDetect - chan event to handle state in goroutines
+	
 	frameChan, _/*faceImageChan*/ := s.cameraWorker.Run(ctx, s.chanIsFaceDetect)
 
-	 // Start preview and recording workers.
-	 //TODO maybe better - face motion goroutines move to frameProcessingWorker
+	// Start preview and recording workers.
+	//TODO maybe better - face motion goroutines move to frameProcessingWorker
+	//TEST - At 30 FPS, you have approximately 33.33 ms per frame.
+	//NEED TO Check if this place works not slower that 33.33ms - s.frameProcessingWorker
 	s.frameProcessingWorker.Run(ctx, s.chanFaceMotionResultChan, s.chanIsMoveDetect, s.chanMoveAnableDetect)
-
 	// Start the virtual-camera worker loop.
 	// This loop consumes frames, but FFmpeg remains stopped until
 	// the user clicks Start Virtual Camera.
