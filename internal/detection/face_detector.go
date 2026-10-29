@@ -6,6 +6,7 @@ import (
 	"os"
 	"github.com/esimov/pigo/core"
 	"golang.org/x/image/draw"
+	"github.com/bogdanCap/video-cap/internal/camera"
 )
 
 type Face struct {
@@ -70,20 +71,41 @@ func (fd *FaceDetector) Detect(img image.Image/*, origWidth int, origHeight int,
 	origWidth := origBounds.Dx()
 	origHeight := origBounds.Dy()
 
-	pixels := fd.rgbaToGrayscale(img, origWidth, origHeight)
+	// resize image logic
+	// Reduce resolution for faster face detection.
+    targetWidth := 320
+    //targetHeight := 240
+
+    smallImg := camera.ReduceImage(img, targetWidth)
+	targetHeight := smallImg.Bounds().Dy()
+
+	
+	pixels := fd.rgbaToGrayscale(
+		/*
+		img, 
+		origWidth, 
+		origHeight,
+		*/
+		smallImg,
+		targetWidth,
+		targetHeight,
+	)
 
 	cParams := pigo.CascadeParams{
 		//Ignore any face smaller than
 		MinSize:     30,
 		//Ignore any face larger than
-		MaxSize:     600,
-		ScaleFactor: 1.1,
-		ShiftFactor: 0.1,
+		MaxSize:     targetHeight/*240*//*600*/,
+		ScaleFactor: 1.2,
+		ShiftFactor: 0.2,
 		ImageParams: pigo.ImageParams{
 			Pixels: pixels,
-			Rows:   origHeight,
-			Cols:   origWidth,
-			Dim:    origWidth,
+			Rows:   targetHeight,
+            Cols:   targetWidth,
+            Dim:    targetWidth,
+			//Rows:   origHeight,
+			//Cols:   origWidth,
+			//Dim:    origWidth,
 		},
 	}
 
@@ -98,12 +120,12 @@ func (fd *FaceDetector) Detect(img image.Image/*, origWidth int, origHeight int,
 	// 1.0: The two boxes match perfectly, corner for corner.
 	faces = fd.classifier.ClusterDetections(faces, 0.2)
 
-	/* this need if i reduce image size in logic camera.ReduceImage(imgFrame, 640)
+	// this need if i reduce image size in logic camera.ReduceImage(imgFrame, 640)
 	scaleX := float64(origWidth) / float64(targetWidth)
 	scaleY := float64(origHeight) / float64(targetHeight)
-	*/
-	scaleX := 1.0 //float64(origWidth) / float64(targetWidth)
-	scaleY := 1.0 //float64(origHeight) / float64(targetHeight)
+	
+	//scaleX := 1.0 //float64(origWidth) / float64(targetWidth)
+	//scaleY := 1.0 //float64(origHeight) / float64(targetHeight)
 
 	//faceSquareScale := 1.0 // if reduce this value need to reduce variable minFaceWidth to show this
 	minFaceWidth := 150 
@@ -155,6 +177,7 @@ func (fd *FaceDetector) Detect(img image.Image/*, origWidth int, origHeight int,
 			continue
 		}
 
+		//The radius calculation stays the same. Only the scale factors change.
 		radius := face.Scale / 2
 
 		smallX := face.Col - radius

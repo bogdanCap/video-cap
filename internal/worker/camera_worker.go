@@ -33,7 +33,9 @@ func NewCameraWorker(
 }
 
 func (w *CameraWorker) Run(ctx context.Context, chanIsFaceDetect <-chan bool) (<-chan []byte, <-chan detection.Face) {
+	//TODO test speed replace 30 length with 2
 	frameChan := make(chan []byte, 30)
+	//frameChan := make(chan []byte, 2) - this need if we need better live preview image 
 	//faceImageChan := make(chan detection.Face, 30)
 
 	w.wg.Add(1)
@@ -117,7 +119,7 @@ func (w *CameraWorker) Run(ctx context.Context, chanIsFaceDetect <-chan bool) (<
 			}
 
 			if isFaceDetect && isFaceDetectInterval {
-				faces, err := w.detector.Detect(flipFrame/*, origWidth, origHeight, targetWidth, targetHeight*/)
+				faces, err := w.detector.Detect(flipFrame)
 
 				//TODO need to add if after last face detection expire 2 seconds and nothing find - need to reset lastFace
 				//this will remove last draw cross from the screen 
@@ -193,6 +195,15 @@ func (w *CameraWorker) Run(ctx context.Context, chanIsFaceDetect <-chan bool) (<
 				log.Println("camera worker stopped")
 
 				return
+			/* this need if we change frameChan from 30 to 2
+			case <-time.After(33 * time.Millisecond):
+				// ⚠️ Downstream workers are backed up! 
+				// We discard this frame to keep the loop synchronized with real-time reality.
+				log.Println("[CameraWorker] Downstream pipeline lagging! Frame dropped after 33ms.")
+				*/
+			default:
+				// The massive 30-frame buffer is 100% full! Drop immediately to prevent infinite memory growth
+    			log.Println("[CameraWorker] Buffer completely full! Dropping frame.")
 			}
 		}
 	}()

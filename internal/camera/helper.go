@@ -87,7 +87,7 @@ func flipRGBA(src *image.RGBA) *image.RGBA {
 func ReduceImage(
     originImg image.Image,
     targetWidth int,
-) (*image.RGBA, int, int, int, int) {
+) (*image.RGBA) {
     origBounds := originImg.Bounds()
     origWidth := origBounds.Dx()
     origHeight := origBounds.Dy()
@@ -107,5 +107,30 @@ func ReduceImage(
         nil,
     )
 
-    return smallImg, origWidth, origHeight, targetWidth, targetHeight
+    return smallImg
+
+	/** option 2 for reduce size
+	dst := image.NewRGBA(image.Rect(0, 0, targetWidth, targetHeight))
+
+	srcBounds := img.Bounds()
+	srcWidth := srcBounds.Dx()
+	srcHeight := srcBounds.Dy()
+
+	scaleX := float64(srcWidth) / float64(targetWidth)
+	scaleY := float64(srcHeight) / float64(targetHeight)
+
+	for y := 0; y < targetHeight; y++ {
+		for x := 0; x < targetWidth; x++ {
+			srcX := int(float64(x) * scaleX)
+			srcY := int(float64(y) * scaleY)
+
+			dst.Set(x, y, img.At(
+				srcBounds.Min.X+srcX,
+				srcBounds.Min.Y+srcY,
+			))
+		}
+	}
+
+	return dst
+	**/
 }
