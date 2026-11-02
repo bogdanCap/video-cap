@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	faceDetectionTickerInterval = 75 * time.Millisecond
+	faceDetectionTickerInterval = 50 * time.Millisecond
 )
 
 type CameraWorker struct {

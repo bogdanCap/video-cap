@@ -10,18 +10,19 @@ import (
 	"github.com/bogdanCap/video-cap/internal/recording"
 	"github.com/bogdanCap/video-cap/internal/worker"
 	"github.com/bogdanCap/video-cap/internal/service"
-	"github.com/bogdanCap/video-cap/internal/virtualcamera"
+	//"github.com/bogdanCap/video-cap/internal/virtualcamera"
 )
 
 type WindowService struct {
-	App    fyne.App
+	//App    fyne.App
 	Window fyne.Window
 }
 
 func NewUIService(
 	recorder recording.Recorder, 
 	cam camera.Camera,
-	virtualCam virtualcamera.VirtualCamera,
+	//virtualCam virtualcamera.VirtualCamera,
+	virtualCameraWorker *worker.VirtualCameraWorker,
 	frameProcessingWorker *worker.FrameProcessingWorker,
 	cameraWorker *worker.CameraWorker,
 	videoPreview *preview.FynePreview,
@@ -29,10 +30,8 @@ func NewUIService(
 	myApp := app.New()
 
 	myWindow := myApp.NewWindow(
-		"USB Camera",
+		"Recorder",
 	)
-
-	virtualCameraWorker := worker.NewVirtualCameraWorker(virtualCam)
 
 	videoControlService := service.NewVideoControlService(
 		recorder,
@@ -40,7 +39,7 @@ func NewUIService(
         cameraWorker,
         frameProcessingWorker,
 		virtualCameraWorker,
-		//callback to stop fyne window
+		//callback to close fyne window
 		func() {
 			myWindow.Close()
 		},
@@ -58,10 +57,11 @@ func NewUIService(
 
     myWindow.Resize(
         fyne.NewSize(800, 480),
+		//fyne.NewSize(320, 240),
     )
 
     return &WindowService{
-        App:    myApp,
+        //App:    myApp,
         Window: myWindow,
     }
 }

@@ -375,7 +375,6 @@ func (w *FrameProcessingWorker) motionTrackerWorker(
 				
 			}()
 
-
 			timer := time.NewTimer(previewTimeout)
 
 			select {

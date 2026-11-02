@@ -13,24 +13,6 @@ import (
 	"fyne.io/fyne/v2/canvas"
 )
 
-/* preview rorate image logic - Option one
-import (
-	"image"
-	"image/color"
-)
-
-// MirrorImage wraps any image.Image and flips it horizontally.
-type MirrorImage struct {
-	image.Image
-}
-
-// At overrides the pixel coordinate lookup to create a mirror effect.
-func (m MirrorImage) At(x, y int) color.Color {
-	bounds := m.Bounds()
-	// Reverse the X coordinate relative to the image boundaries
-	flippedX := bounds.Max.X - 1 - (x - bounds.Min.X)
-	return m.Image.At(flippedX, y)
-}*/
 // MirrorImage wraps any image.Image and flips it horizontally.
 type MirrorImage struct {
 	image.Image
@@ -104,6 +86,7 @@ func NewFynePreview(
 		image.NewRGBA(image.Rect(0, 0, width, height)),
 	)
 
+	//// Preserves the aspect ratio
 	img.FillMode = canvas.ImageFillContain
 
 	// 3. PIXELS stops blurry linear filtering (retains crisp raw video frames)
@@ -127,7 +110,6 @@ func (p *FynePreview) Widget() fyne.CanvasObject {
 func (p *FynePreview) ShowFrame(
 	frame []byte,
 ) error {
-
 	img, err := jpeg.Decode(
 		bytes.NewReader(frame),
 	)

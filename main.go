@@ -86,8 +86,8 @@ func main() {
 	// ----------------------------------------
 
 	videoPreview := preview.NewFynePreview(
-		cameraWidth,
-		cameraHeight,
+		cameraWidth,//320,//cameraWidth,
+		cameraHeight,//240,//cameraHeight,
 	)
 
 	// ----------------------------------------
@@ -126,6 +126,8 @@ func main() {
 		cameraFPS,
 	)
 
+	virtualCameraWorker := worker.NewVirtualCameraWorker(virtualCamera)
+
 	// ----------------------------------------
 	// Fyne
 	// ----------------------------------------
@@ -133,7 +135,7 @@ func main() {
 	uiService := ui.NewUIService(
 		recorder, 
 		cam, 
-		virtualCamera,
+		virtualCameraWorker,
 		frameProcessingWorker, 
 		cameraWorker, 
 		videoPreview,
