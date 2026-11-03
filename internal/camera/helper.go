@@ -1,11 +1,7 @@
 package camera
 
 import (
-	//"bytes"
-	//"fmt"
 	"image"
-	//"image/jpeg"
-	//"image/draw"
 	"golang.org/x/image/draw"
 )
 

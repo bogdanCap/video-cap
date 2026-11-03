@@ -10,18 +10,15 @@ import (
 	"github.com/bogdanCap/video-cap/internal/recording"
 	"github.com/bogdanCap/video-cap/internal/worker"
 	"github.com/bogdanCap/video-cap/internal/service"
-	//"github.com/bogdanCap/video-cap/internal/virtualcamera"
 )
 
 type WindowService struct {
-	//App    fyne.App
 	Window fyne.Window
 }
 
 func NewUIService(
 	recorder recording.Recorder, 
 	cam camera.Camera,
-	//virtualCam virtualcamera.VirtualCamera,
 	virtualCameraWorker *worker.VirtualCameraWorker,
 	frameProcessingWorker *worker.FrameProcessingWorker,
 	cameraWorker *worker.CameraWorker,
@@ -61,7 +58,6 @@ func NewUIService(
     )
 
     return &WindowService{
-        //App:    myApp,
         Window: myWindow,
     }
 }

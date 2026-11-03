@@ -106,64 +106,6 @@ func (r *FFmpegRecorder) startChunk() error {
 		args...
 	)
 
-
-	/*
-	cmd := exec.Command(
-		"ffmpeg",
-
-		"-y",
-
-		"-f", "mjpeg",
-		"-framerate", fmt.Sprintf("%d", r.fps),
-
-		"-i", "pipe:0",
-
-		"-c:v", "libx264",
-		"-preset", "veryfast",
-		"-pix_fmt", "yuv420p",
-
-		"-movflags", "+faststart",
-
-		filename,
-	)
-	*/
-
-	/* 
-	cmd := exec.Command(
-		"ffmpeg",
-
-		"-y",
-
-		// Input is MJPEG.
-		"-f", "mjpeg",
-
-		// Input FPS.
-		"-framerate",
-		fmt.Sprintf("%d", r.fps),
-
-		// Read MJPEG frames from stdin.
-		"-i", "pipe:0",
-
-		// Output resolution.
-		"-vf",
-		fmt.Sprintf(
-			"scale=%d:%d",
-			r.width,
-			r.height,
-		),
-
-		// H.264.
-		"-c:v", "libx264",
-
-		// Compatibility.
-		"-pix_fmt", "yuv420p",
-
-		// MP4 optimization.
-		"-movflags", "+faststart",
-
-		filename,
-	)*/
-
 	input, err := cmd.StdinPipe()
 	if err != nil {
 		return fmt.Errorf(

@@ -1,13 +1,10 @@
 package motiontracker
 
 import (
-	//"math"
 	"bytes"
 	"fmt"
 	"image"
 	"image/jpeg"
-
-	//"github.com/bogdanCap/video-cap/internal/detection"
 )
 
 type MotionTracker struct {

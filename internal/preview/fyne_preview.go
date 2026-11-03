@@ -3,7 +3,6 @@ package preview
 import (
 	"bytes"
 	"fmt"
-	//"time"
 	"image"
 	"image/color"
 	"image/jpeg"
@@ -30,47 +29,6 @@ func (m MirrorImage) At(x, y int) color.Color {
 	//flippedX := m.cachedBound.Max.X - 1 - (x - m.cachedBound.Min.X)
 	//return m.At(flippedX, y)
 }
-
-/* option 2 - need to test what method faster
-
-img, err := jpeg.Decode(bytes.NewReader(frame))
-
-if err != nil {
-	return fmt.Errorf("decode JPEG frame: %w", err)
-}
-
-if rgbaImg, ok := img.(*image.RGBA); ok {
-	bounds := rgbaImg.Bounds()
-	width := bounds.Dx()
-	height := bounds.Dy()
-
-	for y := 0; y < height; y++ {
-		rowStart := y * rgbaImg.Stride
-
-		for x := 0; x < width/2; x++ {
-			// Calculate exact byte positions directly inside Pix array
-			leftIdx  := rowStart + (x * 4)
-			rightIdx := rowStart + ((width - 1 - x) * 4)
-
-			// Swap pixels directly inside rgbaImg.Pix
-			rgbaImg.Pix[leftIdx], rgbaImg.Pix[rightIdx]         = rgbaImg.Pix[rightIdx], rgbaImg.Pix[leftIdx]     // R
-			rgbaImg.Pix[leftIdx+1], rgbaImg.Pix[rightIdx+1] = rgbaImg.Pix[rightIdx+1], rgbaImg.Pix[leftIdx+1] // G
-			rgbaImg.Pix[leftIdx+2], rgbaImg.Pix[rightIdx+2] = rgbaImg.Pix[rightIdx+2], rgbaImg.Pix[leftIdx+2] // B
-			rgbaImg.Pix[leftIdx+3], rgbaImg.Pix[rightIdx+3] = rgbaImg.Pix[rightIdx+3], rgbaImg.Pix[leftIdx+3] // A
-		}
-	}
-	// Explicitly update the main variable so the edit is visible to readers
-	img = rgbaImg
-}
-
-// 2. Fyne UI update
-fyne.Do(func() {
-	p.image.Image = img
-	p.image.Resize(p.container.Size())
-	p.image.Refresh()
-})
-
-*/
 
 type FynePreview struct {
 	image *canvas.Image

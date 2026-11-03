@@ -9,7 +9,6 @@ import (
 	"github.com/bogdanCap/video-cap/internal/preview"
 	"github.com/bogdanCap/video-cap/internal/recording"
 	"github.com/bogdanCap/video-cap/internal/motiontracker"
-	//"github.com/bogdanCap/video-cap/internal/detection"
 )
 
 const previewTimeout = 100 * time.Millisecond
@@ -133,34 +132,6 @@ func (w *FrameProcessingWorker) PushJob(
 			}
 		}
 	}
-	
-	/*
-	// send/push job data to the worker
-	//this select need to detect cancel context from preview and recording goroutines
-	// Preview can drop frames if it is behind.
-	select {
-	case w.previewChan <- frame:
-	default:
-		// Drop preview frame - if preview is behind recording goroutines
-	}
-
-	// Recording must not drop frames.
-	// If the buffer is full, this blocks until
-	// the recording worker consumes a frame.
-	select {
-	case w.recordingChan <- frame:
-	case <-ctx.Done():
-		return
-	}
-	*/
-
-	//face motion detection
-	/*
-	select {
-	case w.faceMotionChan <- faceFrame:
-	case <-ctx.Done():
-		return
-	}*/
 }
 
 func (w *FrameProcessingWorker) previewWorker(
@@ -305,32 +276,6 @@ func (w *FrameProcessingWorker) recordingWorker(
 		}
 	}
 }
-
-/*
-// StartRecording serializes recorder startup with frame writes.
-func (w *FrameProcessingWorker) StartRecording() error {
-	w.recordingMu.Lock()
-	defer w.recordingMu.Unlock()
-
-	if w.recorder.IsRunning() {
-		return nil
-	}
-
-	return w.recorder.Start()
-}
-
-// StopRecording stops only the recorder, not the camera or processing workers.
-func (w *FrameProcessingWorker) StopRecording() error {
-	w.recordingMu.Lock()
-	defer w.recordingMu.Unlock()
-
-	if !w.recorder.IsRunning() {
-		return nil
-	}
-
-	return w.recorder.Stop()
-}*/
-
 
 func (w *FrameProcessingWorker) motionTrackerWorker(
 	ctx context.Context,

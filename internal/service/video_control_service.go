@@ -434,7 +434,6 @@ func (s *VideoControlService) toggleMoveDetection() {
 }
 
 // toggleVirtualCamera toggles only virtual-camera output.
-// toggleVirtualCamera toggles only virtual-camera output.
 // The normal camera pipeline continues regardless of this button's state.
 func (s *VideoControlService) toggleVirtualCamera() {
 	/*

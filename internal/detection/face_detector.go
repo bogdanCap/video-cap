@@ -35,38 +35,7 @@ func NewFaceDetector(cascadePath string) (*FaceDetector, error) {
 	return &FaceDetector{classifier: classifier}, nil
 }
 
-func (fd *FaceDetector) Detect(img image.Image/*, origWidth int, origHeight int, targetWidth int, targetHeight int*/) ([]Face, error) {
-
-	/* this logic reduce image - i moved it to another package
-	img, _, err := image.Decode(bytes.NewReader(frame))
-	if err != nil {
-		return nil, err
-	}*/
-
-	//return origin image resolution
-	/*
-	origBounds := img.Bounds()
-	origWidth := origBounds.Dx()
-	origHeight := origBounds.Dy()
-
-	targetWidth := 320
-	targetHeight := (origHeight * targetWidth) / origWidth
-
-	smallImg := image.NewRGBA(image.Rect(0, 0, targetWidth, targetHeight))
-	draw.NearestNeighbor.Scale(
-		smallImg, 
-		smallImg.Bounds(), 
-		img, 
-		origBounds, 
-		draw.Src, 
-		nil,
-	)
-
-	pixels := fd.rgbaToGrayscale(smallImg, targetWidth, targetHeight)
-	*/
-
-	//this do not need if i reduce image size in logic camera.ReduceImage(imgFrame, 640)
-	//i get this from method parameter
+func (fd *FaceDetector) Detect(img image.Image) ([]Face, error) {
 	origBounds := img.Bounds()
 	origWidth := origBounds.Dx()
 	origHeight := origBounds.Dy()
@@ -133,39 +102,7 @@ func (fd *FaceDetector) Detect(img image.Image/*, origWidth int, origHeight int,
 
 	for _, face := range faces {
 		//logic with rectangle
-		/*
-		if face.Q > 5.0 {
-			radius := face.Scale / 2
-			
-			smallX := face.Col - radius
-			smallY := face.Row - radius
-			// Increase the square diameter.
-    		smallW := int(float64(face.Scale) * faceSquareScale)
-    		smallH := int(float64(face.Scale) * faceSquareScale)
-			//smallW := face.Scale
-			//smallH := face.Scale
 
-			// Map coordinates back up to full-scale size
-			fullWidth := int(float64(smallW) * scaleX)
-			//fullHeight := int(float64(smallH) * scaleY)
-
-			// 🚫 SIZE FILTER: Only return the face if it meets your minimum size requirement
-			if fullWidth < minFaceWidth {
-				continue // Skip this small face entirely
-			}
-
-			detectedFaces = append(detectedFaces, Face{
-				X:      int(float64(smallX) * scaleX),
-				Y:      int(float64(smallY) * scaleY),
-				Width:  int(float64(smallW) * scaleX),
-				Height: int(float64(smallH) * scaleY),
-			})
-
-			//only need 1 face object
-			break
-		}*/
-
-		//logic with face detection option 2
 		//found a potential face - from 0.0 to 10.0 - The code becomes much stricter
 		if face.Q <= 5.0 {
 			continue
@@ -197,22 +134,7 @@ func (fd *FaceDetector) Detect(img image.Image/*, origWidth int, origHeight int,
 }
 
 // DrawFaces takes the original frame and a slice of Face structs
-func (fd *FaceDetector) DrawFaces(img image.Image, faces []Face) (image.Image/*[]byte*/, error) {
-	/* logic to draw rectangle
-
-	bounds := img.Bounds()
-	rgbaImg := image.NewRGBA(bounds)
-	draw.Draw(rgbaImg, bounds, img, bounds.Min, draw.Src)
-
-	green := color.RGBA{R: 0, G: 255, B: 0, A: 255}
-	for _, f := range faces {
-		// Clean and scannable interface: passing the entire Face object
-		fd.drawBox(rgbaImg, f, green)
-	}
-
-	return rgbaImg, nil
-	*/
-
+func (fd *FaceDetector) DrawFaces(img image.Image, faces []Face) (image.Image, error) {
 	bounds := img.Bounds()
 
 	rgbaImg := image.NewRGBA(bounds)
@@ -244,69 +166,6 @@ func (fd *FaceDetector) DrawFaces(img image.Image, faces []Face) (image.Image/*[
 	return rgbaImg, nil
 }
 
-/*
-func (fd *FaceDetector) drawLine(
-	img *image.RGBA,
-	x1, y1, x2, y2 int,
-	lineWidth int,
-	c color.RGBA,
-) {
-	bounds := img.Bounds()
-	halfWidth := lineWidth / 2
-
-	// Horizontal line.
-	for x := x1; x <= x2; x++ {
-		for y := y1 - halfWidth; y <= y1+halfWidth; y++ {
-			if image.Pt(x, y).In(bounds) {
-				img.SetRGBA(x, y, c)
-			}
-		}
-	}
-
-	// Vertical line.
-	for y := y1; y <= y2; y++ {
-		for x := x1 - halfWidth; x <= x1+halfWidth; x++ {
-			if image.Pt(x, y).In(bounds) {
-				img.SetRGBA(x, y, c)
-			}
-		}
-	}
-}*/
-/*
-func ScaleFaces(
-	faces []Face,
-	smallWidth int,
-	smallHeight int,
-	originalWidth int,
-	originalHeight int,
-	mirrored bool,
-) []Face {
-	scaleX := float64(originalWidth) / float64(smallWidth)
-	scaleY := float64(originalHeight) / float64(smallHeight)
-
-	scaledFaces := make([]Face, 0, len(faces))
-
-	for _, face := range faces {
-		x := int(float64(face.X) * scaleX)
-		y := int(float64(face.Y) * scaleY)
-		width := int(float64(face.Width) * scaleX)
-		height := int(float64(face.Height) * scaleY)
-
-		if mirrored {
-			x = originalWidth - x - width
-		}
-
-		scaledFaces = append(scaledFaces, Face{
-			X:      x,
-			Y:      y,
-			Width:  width,
-			Height: height,
-		})
-	}
-
-	return scaledFaces
-}*/
-
 func (fd *FaceDetector) rgbaToGrayscale(img image.Image, width, height int) []uint8 {
 	gray := make([]uint8, width*height)
 	for y := 0; y < height; y++ {
@@ -317,68 +176,3 @@ func (fd *FaceDetector) rgbaToGrayscale(img image.Image, width, height int) []ui
 	}
 	return gray
 }
-
-// drawBox now cleanly consumes the structured Face model directly
-/*
-func (fd *FaceDetector) drawBox(img *image.RGBA, f Face, col color.Color) {
-	bounds := img.Bounds()
-
-	// Draw top and bottom horizontal borders
-	for i := f.X; i < f.X+f.Width; i++ {
-		if i >= bounds.Min.X && i < bounds.Max.X {
-			if f.Y >= bounds.Min.Y && f.Y < bounds.Max.Y {
-				img.Set(i, f.Y, col)
-			}
-			if f.Y+f.Height >= bounds.Min.Y && f.Y+f.Height < bounds.Max.Y {
-				img.Set(i, f.Y+f.Height, col)
-			}
-		}
-	}
-	
-	// Draw left and right vertical borders
-	for j := f.Y; j < f.Y+f.Height; j++ {
-		if j >= bounds.Min.Y && j < bounds.Max.Y {
-			if f.X >= bounds.Min.X && f.X < bounds.Max.X {
-				img.Set(f.X, j, col)
-			}
-			if f.X+f.Width >= bounds.Min.X && f.X+f.Width < bounds.Max.X {
-				img.Set(f.X+f.Width, j, col)
-			}
-		}
-	}
-
-
-	/* if need change line thickness
-	lineHeight := 5  // Controls thickness of TOP and BOTTOM horizontal bars
-	lineWidth  := 2  // Controls thickness of LEFT and RIGHT vertical bars
-
-	// 1. Draw Top and Bottom Horizontal Bars
-	for h := 0; h < lineHeight; h++ { // 👈 Uses your custom line height
-		topY := f.Y + h
-		bottomY := f.Y + f.Height - h
-
-		for x := f.X; x < f.X+f.Width; x++ {
-			fd.setPixelSafe(img, x, topY, bounds, col)
-			fd.setPixelSafe(img, x, bottomY, bounds, col)
-		}
-	}
-
-	// 2. Draw Left and Right Vertical Bars
-	for w := 0; w < lineWidth; w++ { // 👈 Uses your custom line width
-		leftX := f.X + w
-		rightX := f.X + f.Width - w
-
-		for y := f.Y; y < f.Y+f.Height; y++ {
-			fd.setPixelSafe(img, leftX, y, bounds, col)
-			fd.setPixelSafe(img, rightX, y, bounds, col)
-		}
-	}*/
-/*}*/
-
-/*
-// Helper to safely paint pixels only if they fall inside the valid image canvas bounds
-func (fd *FaceDetector) setPixelSafe(img *image.RGBA, x, y int, bounds image.Rectangle, col color.Color) {
-	if x >= bounds.Min.X && x < bounds.Max.X && y >= bounds.Min.Y && y < bounds.Max.Y {
-		img.Set(x, y, col)
-	}
-}*/
