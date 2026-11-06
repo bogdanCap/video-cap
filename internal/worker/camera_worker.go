@@ -146,6 +146,9 @@ func (w *CameraWorker) Run(ctx context.Context, chanIsFaceDetect <-chan bool) (<
 				
 				// Draw the last detected face.
 				if lastFace != nil {
+					//logic from face_service placed here
+
+
 					flipFrame, err = w.detector.DrawFaces(
 						flipFrame,
 						[]detection.Face{*lastFace},
@@ -177,7 +180,11 @@ func (w *CameraWorker) Run(ctx context.Context, chanIsFaceDetect <-chan bool) (<
 			}
 
 			var outBuf bytes.Buffer
-			completFrameByteErr := jpeg.Encode(&outBuf, flipFrame, &jpeg.Options{Quality: 90})
+			completFrameByteErr := jpeg.Encode(
+				&outBuf, 
+				flipFrame, 
+				&jpeg.Options{Quality: 90},
+			)
 
 			if completFrameByteErr != nil {
 				log.Println("camera frame flip convert to byte: ", completFrameByteErr)

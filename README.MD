@@ -3,10 +3,14 @@ init:
     go get fyne.io/fyne/v2@v2.7.0  (this version works on ubuntu 20.04)
     go get github.com/korandiz/v4l@v1.1.0
     
-    go get gocv.io/x/gocv@v0.22.0  (this do not need - if pigo will works)
+    go get gocv.io/x/gocv@v0.22.0  (we use pigo istead - old version for v4l_camera now do not need)
     go get github.com/esimov/pigo/core
-    
 
+    go get github.com/pgvector/pgvector-go
+    go get github.com/yalue/onnxruntime_go
+    go get golang.org/x/image/draw
+    go get github.com/jackc/pgx/v5/pgxpool
+    
     go mod edit -go=1.27.0
     got mod tidy
     sudo apt install libgl1-mesa-dev xorg-dev

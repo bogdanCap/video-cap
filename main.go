@@ -128,6 +128,55 @@ func main() {
 
 	virtualCameraWorker := worker.NewVirtualCameraWorker(virtualCamera)
 
+	/** TODO init new logic related with face saving 
+		ctx := context.Background()
+
+		// PostgreSQL.
+		db, err := pgxpool.New(ctx, "postgres://user:password@localhost:5432/mydb")
+		if err != nil {
+			panic(err)
+		}
+		defer db.Close()
+
+		// Face detection.
+		detector := detection.NewFaceDetector()
+
+		// need to init befor ArcFace
+		ort.SetSharedLibraryPath(
+			"/usr/local/lib/libonnxruntime.so",
+		)
+
+		if err := ort.InitializeEnvironment(); err != nil {
+			panic(err)
+		}
+
+		defer ort.DestroyEnvironment()
+
+		// Face recognition.
+		recognizer, err := recognition.NewArcFace(
+			"model/arcface.onnx",
+			"input",
+			"output",
+		)
+
+		if err != nil {
+			panic(err)
+		}
+		defer recognizer.Close()
+
+		// Repository.
+		faceRepository := repository.NewFaceRepository(db)
+
+		// Business service.
+		faceService := face.NewFaceService(
+			detector,
+			recognizer,
+			faceRepository,
+		)
+
+		_ = faceService
+	*/
+
 	// ----------------------------------------
 	// Fyne
 	// ----------------------------------------
