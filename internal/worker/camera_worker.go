@@ -93,6 +93,7 @@ func (w *CameraWorker) Run(ctx context.Context, chanIsFaceDetect <-chan bool) (<
 			//flipFrame, flipError := camera.FlipImage(reduceFrame)
 
 			flipFrame, flipError := camera.FlipImage(imgFrame)
+			//originFrame := flipFrame
 
 			//flipFrame := imgFrame
 			
@@ -147,6 +148,7 @@ func (w *CameraWorker) Run(ctx context.Context, chanIsFaceDetect <-chan bool) (<
 				// Draw the last detected face.
 				if lastFace != nil {
 					//logic from face_service placed here
+					//TODO in this place i think need to add Struct with property 
 
 
 					flipFrame, err = w.detector.DrawFaces(
@@ -179,6 +181,7 @@ func (w *CameraWorker) Run(ctx context.Context, chanIsFaceDetect <-chan bool) (<
 				}
 			}
 
+
 			var outBuf bytes.Buffer
 			completFrameByteErr := jpeg.Encode(
 				&outBuf, 
@@ -192,6 +195,9 @@ func (w *CameraWorker) Run(ctx context.Context, chanIsFaceDetect <-chan bool) (<
 				return
 			}
 			completeFrame := outBuf.Bytes()
+
+			//TODO instead frameChan need to use Struct with property originFrame (foriginFrame) and face (lastFace)
+			//TODO this need for face_service lgic
 
 			// Send frame to the channel.
 			select {

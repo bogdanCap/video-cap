@@ -1,0 +1,22 @@
+#!/bin/sh
+# Exit immediately if a command exits with a non-zero status
+set -e
+
+docker compose up -d
+
+echo "⏳ Waiting for PostgreSQL database to start up..."
+# Standard tool to check if the database port is active
+while ! nc -z 127.0.0.1 5432; do
+  sleep 1
+done
+
+echo "✅ Database container is up and running!"
+
+echo "🛠️ 2. Compiling Go GUI Application..."
+# Automatically compiles main.go into the 'record' binary
+go build -o record
+echo "✅ Compilation successful!"
+
+echo "🚀 3. Launching Application..."
+# Run the newly compiled binary
+./record

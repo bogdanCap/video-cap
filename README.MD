@@ -7,7 +7,7 @@ init:
     go get github.com/esimov/pigo/core
 
     go get github.com/pgvector/pgvector-go
-    go get github.com/yalue/onnxruntime_go
+    go get github.com/yalue/onnxruntime_go  (https://netron.app/?utm_source=chatgpt.com)
     go get golang.org/x/image/draw
     go get github.com/jackc/pgx/v5/pgxpool
     
@@ -42,6 +42,13 @@ run:
 
     for virtual camera batton and logic:
         sudo modprobe v4l2loopback devices=1 video_nr=2 card_label="Go Virtual Camera" exclusive_caps=1
+
+    #for docker
+    chmod +x boot.go_sh
+    docker-compose up -d
+    ./boot.go_sh
+
+
 
 Debug video:
     video fpv:

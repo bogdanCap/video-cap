@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: app_postgres_db
+    environment:
+      POSTGRES_USER: db_user
+      POSTGRES_PASSWORD: secure_password_123
+      POSTGRES_DB: app_records
+    ports:
+      # Maps port 5432 of the container to port 5432 on your actual machine
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

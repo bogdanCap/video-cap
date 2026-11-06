@@ -1,0 +1,58 @@
+package worker
+
+import (
+    "context"
+    "image"
+    "log"
+
+    "github.com/bogdanCap/video-cap/internal/face"
+)
+
+type FaceProcessWorker struct {
+    faceService *face.FaceService
+}
+
+func NewFaceProcessWorker(
+    faceService *face.FaceService,
+) *FaceWorker {
+    return &FaceProcessWorker{
+        faceService: faceService,
+    }
+}
+
+func (w *FaceProcessWorker) Run(
+    ctx context.Context,
+    frameChan <-chan image.Image,
+) {
+    //run face service for find or create face every 5 seconds
+    ticker := time.NewTicker(5 * time.Second)
+    defer ticker.Stop()
+
+    for {
+        select {
+        case <-ctx.Done():
+            return
+
+        case <-ticker.C:
+            // Wait for the next frame.
+            select {
+            case <-ctx.Done():
+                return
+
+            case frame, ok := <-frameChan:
+                if !ok {
+                    return
+                }
+
+                _, err := w.faceService.FindOrCreate(
+                    ctx,
+                    frame.Image,
+                    frame.ImagePath,
+                )
+                if err != nil {
+                    log.Println("face recognition error:", err)
+                }
+            }
+        }
+    }
+}

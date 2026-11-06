@@ -177,6 +177,10 @@ func (s *VideoControlService) start() {
 	go func() {
 		s.frameProcessingWorker.PushJob(ctx, frameChan)		
 	}()
+
+	//TODO in this place run face_service logic in separate goroutines
+	// Start face worker.
+	//go faceWorker.Run(ctx, frameChan)
 }
 
 func (s *VideoControlService) stop() {

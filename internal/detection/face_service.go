@@ -57,8 +57,8 @@ func (s *FaceService) FindOrCreate(
     if len(faces) == 0 {
         return 0, errors.New("face not found")
     }
-	//TODO this logic move to camera_worker.go
-	// into line 149 in camera_worker.go
+	//TODO this logic move to video_control_service.go
+	// into line 181 in camera_worker.go
 
     // 2. Extract face from original image.
     faceImage := FaceImage{
