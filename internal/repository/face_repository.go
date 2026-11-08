@@ -29,6 +29,16 @@ func (r *FaceRepository) FindSimilar(
     threshold float32,
 ) (*FaceMatch, error) {
 
+    /*
+    SELECT
+        id,
+        image_name,
+        1 - (embedding <=> $1::vector) AS similarity
+    FROM faces
+    ORDER BY embedding <=> $1::vector
+    LIMIT 10;
+    */
+
     query := `
         SELECT
             id,

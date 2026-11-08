@@ -10,12 +10,31 @@ init:
     go get github.com/yalue/onnxruntime_go  (https://netron.app/?utm_source=chatgpt.com)
     go get golang.org/x/image/draw
     go get github.com/jackc/pgx/v5/pgxpool
+    go get github.com/joho/godotenv
     
     go mod edit -go=1.27.0
     got mod tidy
     sudo apt install libgl1-mesa-dev xorg-dev
     sudo apt install ffmpeg
-    
+    sudo snap install goose
+
+    go get github.com/pressly/goose/v3
+        go install github.com/pressly/goose/v3/cmd/goose@latest
+        +
+        export PATH=$PATH:$(go env GOPATH)/bin
+    go get github.com/jackc/pgx/v5/stdlib
+
+Migration:
+    goose -dir migrations create create_users_table sql
+    goose -dir migrations postgres "postgres://db_user:secure_password_123@localhost:5432/app_record?sslmode=disable" up
+
+    DATABASE_URL="postgres://user:password@localhost:5432/mydb?sslmode=disable" go run . migrate up
+    DATABASE_URL="postgres://user:password@localhost:5432/mydb?sslmode=disable" ./my-fyne-app migrate up
+
+db:
+    docker exec -it app_postgres_db pg_isready -U db_user -d app_record
+
+    docker compose down -v (down with volums)
 
 for clone project:
     go mod download

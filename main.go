@@ -3,6 +3,10 @@ package main
 import (
 	"log"
 	"time"
+	"os"
+	"embed"
+	"context"
+	
 
 	"bytes"
 	"encoding/xml"
@@ -15,6 +19,11 @@ import (
 	"github.com/bogdanCap/video-cap/internal/ui"
 	"github.com/bogdanCap/video-cap/internal/worker"
 	"github.com/bogdanCap/video-cap/internal/virtualcamera"
+
+	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/pressly/goose/v3"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/joho/godotenv"
 )
 
 const (
@@ -51,11 +60,59 @@ const (
 	//frameBufferSize = 2
 )
 
+var embedMigrations embed.FS
+
 func main() {
+	//TODO move to db connection service
+	ctx := context.Background()
+
+	// Load .env file if present (ignore error if running with system env vars)
+	_ = godotenv.Load()
+
+	dbURL := os.Getenv("DATABASE_URL")
+	// 2. Parse the config and/or pool settings
+	poolConfig, err := pgxpool.ParseConfig(dbURL)
+	if err != nil {
+		log.Fatalf("Unable to parse DATABASE_URL: %v", err)
+	}
+
+	// Optional: Adjust pool settings
+	// poolConfig.MaxConns = 10
+	// poolConfig.MinConns = 2
+
+	// 3. Create the connection pool
+	dbPool, err := pgxpool.NewWithConfig(ctx, poolConfig)
+
+	if err != nil {
+		panic(err)
+	}
+
+	defer dbPool.Close()
+
+	// 4. Verify the connection
+	if err := dbPool.Ping(ctx); err != nil {
+		log.Fatalf("Unable to ping database: %v", err)
+	}
+
+	// 1. Intercept CLI migration commands before starting Fyne
+	if len(os.Args) > 1 && os.Args[1] == "migrate" {
+		command := "up"
+		var args []string
+		if len(os.Args) > 2 {
+			command = os.Args[2]
+			args = os.Args[3:]
+		}
+
+		if err := runMigration(ctx, dbPool, command, args...); err != nil {
+			log.Fatalf("Migration failed: %v", err)
+		}
+		return // Exit without opening the Fyne window
+	}
+
+
 	// ----------------------------------------
 	// Camera
 	// ----------------------------------------
-
 	cam, err := camera.NewV4LCamera(
 		cameraDevice,
 		cameraWidth,
@@ -198,4 +255,29 @@ func xmlEscape(s string) string {
 		return s
 	}
 	return buf.String()
+}
+
+//TODO move to separate service
+func runMigration(
+	ctx context.Context,
+	pool *pgxpool.Pool,
+	command string,
+	args ...string,
+) error {
+	// Wrap pgxpool.Pool as a standard *sql.DB for Goose
+	sqlDB := stdlib.OpenDBFromPool(pool)
+	defer sqlDB.Close()
+
+	goose.SetBaseFS(embedMigrations)
+	if err := goose.SetDialect("postgres"); err != nil {
+		return err
+	}
+
+	return goose.RunContext(
+		ctx, 
+		command, 
+		sqlDB, 
+		"migrations", 
+		args...
+	)
 }
