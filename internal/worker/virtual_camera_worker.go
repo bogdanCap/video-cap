@@ -26,12 +26,12 @@ func NewVirtualCameraWorker(
 // Run should be started once for each application capture session.
 // It does not start FFmpeg itself.
 func (w *VirtualCameraWorker) Run(
-	ctx context.Context,
+	cancelCtx context.Context,
 	frameChan <-chan []byte,
 ) {
 	for {
 		select {
-		case <-ctx.Done():
+		case <-cancelCtx.Done():
 			log.Println("virtual camera worker stopped")
 			return
 

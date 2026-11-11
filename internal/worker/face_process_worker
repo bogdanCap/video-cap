@@ -21,7 +21,7 @@ func NewFaceProcessWorker(
 }
 
 func (w *FaceProcessWorker) Run(
-    ctx context.Context,
+    cancelCtx context.Context,
     frameChan <-chan image.Image,
 ) {
     //run face service for find or create face every 5 seconds
@@ -30,13 +30,13 @@ func (w *FaceProcessWorker) Run(
 
     for {
         select {
-        case <-ctx.Done():
+        case <-cancelCtx.Done():
             return
 
         case <-ticker.C:
             // Wait for the next frame.
             select {
-            case <-ctx.Done():
+            case <-cancelCtx.Done():
                 return
 
             case frame, ok := <-frameChan:
@@ -45,7 +45,7 @@ func (w *FaceProcessWorker) Run(
                 }
 
                 _, err := w.faceService.FindOrCreate(
-                    ctx,
+                    cancelCtx,
                     frame.Image,
                     frame.ImagePath,
                 )

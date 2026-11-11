@@ -32,7 +32,7 @@ func NewCameraWorker(
 	}
 }
 
-func (w *CameraWorker) Run(ctx context.Context, chanIsFaceDetect <-chan bool) (<-chan []byte, <-chan detection.Face) {
+func (w *CameraWorker) Run(cancelCtx context.Context, chanIsFaceDetect <-chan bool) (<-chan []byte, <-chan detection.Face) {
 	//TODO test speed replace 30 length with 2
 	frameChan := make(chan []byte, 30)
 	//frameChan := make(chan []byte, 2) - this need if we need better live preview image 
@@ -54,7 +54,7 @@ func (w *CameraWorker) Run(ctx context.Context, chanIsFaceDetect <-chan bool) (<
 
 		for {
 			select {
-			case <-ctx.Done():
+			case <-cancelCtx.Done():
 				log.Println("camera worker stopped")
 				return
 			case isFaceDetect = <-chanIsFaceDetect:
@@ -68,7 +68,7 @@ func (w *CameraWorker) Run(ctx context.Context, chanIsFaceDetect <-chan bool) (<
 			if err != nil {
 				// Camera can return an error because cam.Stop()
 				// was called during shutdown.
-				if ctx.Err() != nil {
+				if cancelCtx.Err() != nil {
 					log.Println("camera worker stopped")
 				} else {
 					log.Println("camera read:", err)
@@ -204,7 +204,7 @@ func (w *CameraWorker) Run(ctx context.Context, chanIsFaceDetect <-chan bool) (<
 			case frameChan <- completeFrame:
 			//case faceImageChan <- *lastFace:	
 
-			case <-ctx.Done():
+			case <-cancelCtx.Done():
 				log.Println("camera worker stopped")
 
 				return

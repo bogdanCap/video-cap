@@ -67,6 +67,15 @@ run:
     docker-compose up -d
     ./boot.go_sh
 
+    with app db:
+        go build -o record
+        ./boot.go_sh
+
+    docker:
+        docker-compose up --build
+        docker-compose up -d
+        docker compose down
+        docker compose down -v (stop and delete volum)
 
 
 Debug video:

@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 	"sync"
+	"errors" 
 
 	"github.com/bogdanCap/video-cap/internal/preview"
 	"github.com/bogdanCap/video-cap/internal/recording"
@@ -135,11 +136,11 @@ func (w *FrameProcessingWorker) PushJob(
 }
 
 func (w *FrameProcessingWorker) previewWorker(
-	ctx context.Context,
+	cancelCtx context.Context,
 ) {
 	for {
 		select {
-		case <-ctx.Done():
+		case <-cancelCtx.Done():
 			log.Println("preview worker stopped")
 			return
 
@@ -155,11 +156,10 @@ func (w *FrameProcessingWorker) previewWorker(
 				done <- w.preview.ShowFrame(frame)
 			}()
 
-			timer := time.NewTimer(previewTimeout)
+			//timer := time.NewTimer(previewTimeout)
 
-			//TODO logic instead timer and child timeoutCtx we create from parrent contect
-			/*
-			timeoutCtx, cancel := context.WithTimeout(ctx, previewTimeout)
+			//TODO check this logic id ShowFrame works slower than 100ml what happend
+			timeoutCtx, cancel := context.WithTimeout(cancelCtx, previewTimeout)
 			defer cancel() // Automatically cleans up no matter which case matches
 
 			select {
@@ -174,8 +174,8 @@ func (w *FrameProcessingWorker) previewWorker(
 					// to 'return' or 'break' the outer loop from here.
 				}
 			}
-			*/
 
+			/*
 			select {
 			case err := <-done:
 				timer.Stop()
@@ -195,13 +195,13 @@ func (w *FrameProcessingWorker) previewWorker(
 
 				log.Println("preview worker stopped")
 				return
-			}
+			}*/
 		}
 	}
 }
 
 func (w *FrameProcessingWorker) recordingWorker(
-	ctx context.Context,
+	cancelCtx context.Context,
 	chanIsMoveDetect <-chan bool,
 	chanMoveAnableDetect <-chan bool,
 ) {
@@ -218,7 +218,7 @@ func (w *FrameProcessingWorker) recordingWorker(
 		case moveDetectAnabled = <-chanMoveAnableDetect:
 			//startRecord = isMoveDetected
 			//log.Println("motion enabled:", chanMoveAnableDetect)
-		case <-ctx.Done():
+		case <-cancelCtx.Done():
 			//stop button (cancel) logic
 			// Process all frames that are already
 			// waiting in recordingChan.
@@ -270,8 +270,26 @@ func (w *FrameProcessingWorker) recordingWorker(
 				done <- w.writeFrame(frame)
 			}()
 
-			timer := time.NewTimer(recordingTimeout)
+			//timer := time.NewTimer(recordingTimeout)
+			timeoutCtx, cancel := context.WithTimeout(cancelCtx, recordingTimeout)
+			defer cancel() // Automatically cleans up no matter which case matches
 
+			select {
+			case err := <-done:
+				if err != nil { 
+					log.Println("recording:", err)
+				}
+			case <-timeoutCtx.Done():
+				if errors.Is(timeoutCtx.Err(), context.DeadlineExceeded) {
+					log.Println("recording timeout - skip current job")
+				} else {
+					log.Println("recording worker stopped")
+					// Note: you'll need standard control flow variables if you intend 
+					// to 'return' or 'break' the outer loop from here.
+				}
+			}
+
+			/*
 			select {
 			case err := <-done:
 				//frame save and its ok
@@ -287,22 +305,22 @@ func (w *FrameProcessingWorker) recordingWorker(
 				// Do not wait for WriteFrame().
 				// Continue the for loop and receive the next frame.
 
-			case <-ctx.Done():
+			case <-cancelCtx.Done():
 				//Context cancellation -> main.go -> cancel()
 				timer.Stop()
 				return
-			}
+			}*/
 		}
 	}
 }
 
 func (w *FrameProcessingWorker) motionTrackerWorker(
-	ctx context.Context,
+	cancelCtx context.Context,
 	chanFaceMotionResultChan chan<- motiontracker.MotionResult,
 ) {
 	for {
 		select {
-		case <-ctx.Done():
+		case <-cancelCtx.Done():
 			log.Println("face motion worker stopped")
 			return
 
@@ -311,12 +329,12 @@ func (w *FrameProcessingWorker) motionTrackerWorker(
 				return
 			}
 
-			type trackingResponse struct {
+			type trackingResponseDTO struct {
 				isMoving bool
 				//face     detection.Face
 				err      error
 			}
-			done := make(chan trackingResponse, 1)
+			chanTrackingResponseDTO := make(chan trackingResponseDTO, 1)
 
 			//done := make(chan bool, 1)
 
@@ -331,7 +349,7 @@ func (w *FrameProcessingWorker) motionTrackerWorker(
 					log.Println("error to track face motion:  ", err)
 				}
 
-				done <- trackingResponse{
+				chanTrackingResponseDTO <- trackingResponseDTO{
 					isMoving: isMoving,
 					//face:     matchedFace,
 					err:      err,
@@ -339,8 +357,47 @@ func (w *FrameProcessingWorker) motionTrackerWorker(
 				
 			}()
 
-			timer := time.NewTimer(previewTimeout)
+			//timer := time.NewTimer(previewTimeout)
 
+			timeoutCtx, cancel := context.WithTimeout(cancelCtx, previewTimeout)
+			defer cancel() // Automatically cleans up no matter which case matches
+
+			select {
+			case trackMove := <-chanTrackingResponseDTO:
+				if trackMove.err != nil { 
+					//log.Println("recording:", err)
+					log.Println("preview:", trackMove.err)
+					continue
+				}
+
+				// ✅ FIXED: Pure non-blocking send. No read operations on send-only channel.
+				select {
+				case chanFaceMotionResultChan <- motiontracker.MotionResult{
+					IsMoving: trackMove.isMoving,
+					//Face:     out.face,
+				}:
+					//log.Println("event caught before send event to side button")
+				
+				default:
+					// If the "Face detect" button loop hasn't started yet or is full,
+					// it hits this default case and drops the frame gracefully so the 
+					// main camera/recording loop never freezes.
+
+					log.Println("chanFaceMotionResultChan is full or UI loop is inactive - frame dropped")
+				}
+			case <-timeoutCtx.Done():
+				if errors.Is(timeoutCtx.Err(), context.DeadlineExceeded) {
+					log.Println("preview timeout - skip current job")
+				} else {
+					//log.Println("recording worker stopped")
+					log.Println("preview worker stopped")
+					return
+					// Note: you'll need standard control flow variables if you intend 
+					// to 'return' or 'break' the outer loop from here.
+				}
+			}
+
+			/*
 			select {
 			case out := <-done:
 				timer.Stop()
@@ -376,7 +433,7 @@ func (w *FrameProcessingWorker) motionTrackerWorker(
 
 				log.Println("preview worker stopped")
 				return
-			}
+			}*/
 		}
 	}
 }
