@@ -237,8 +237,16 @@ func main() {
 	// ----------------------------------------
 	// Fyne
 	// ----------------------------------------
+	calcelCtx, cancelCtxFunc := context.WithCancel(
+		ctx,
+	)
+
+	//avoid context leaks
+	defer cancelCtxFunc()
 
 	uiService := ui.NewUIService(
+		calcelCtx,
+		cancelCtxFunc,
 		recorder, 
 		cam, 
 		virtualCameraWorker,

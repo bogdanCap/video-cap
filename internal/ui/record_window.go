@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"context"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
@@ -17,6 +18,8 @@ type WindowService struct {
 }
 
 func NewUIService(
+	cancelCtx context.Context,
+	cancelCtxFunc context.CancelFunc, 
 	recorder recording.Recorder, 
 	cam camera.Camera,
 	virtualCameraWorker *worker.VirtualCameraWorker,
@@ -31,6 +34,8 @@ func NewUIService(
 	)
 
 	videoControlService := service.NewVideoControlService(
+		cancelCtx,
+		cancelCtxFunc,
 		recorder,
         cam,
         cameraWorker,

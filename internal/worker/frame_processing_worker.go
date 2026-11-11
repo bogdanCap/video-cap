@@ -157,6 +157,25 @@ func (w *FrameProcessingWorker) previewWorker(
 
 			timer := time.NewTimer(previewTimeout)
 
+			//TODO logic instead timer and child timeoutCtx we create from parrent contect
+			/*
+			timeoutCtx, cancel := context.WithTimeout(ctx, previewTimeout)
+			defer cancel() // Automatically cleans up no matter which case matches
+
+			select {
+			case err := <-done:
+				if err != nil { log.Println("preview:", err) }
+			case <-timeoutCtx.Done():
+				if errors.Is(timeoutCtx.Err(), context.DeadlineExceeded) {
+					log.Println("preview timeout - skip current job")
+				} else {
+					log.Println("preview worker stopped")
+					// Note: you'll need standard control flow variables if you intend 
+					// to 'return' or 'break' the outer loop from here.
+				}
+			}
+			*/
+
 			select {
 			case err := <-done:
 				timer.Stop()

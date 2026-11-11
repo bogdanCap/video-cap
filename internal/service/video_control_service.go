@@ -38,7 +38,7 @@ type VideoControlService struct {
 
 
 	// Runtime state
-	cancelContext context.CancelFunc
+	//cancelContext context.CancelFunc
 	isFaceDetect bool
 	isMoveDetect bool
 	chanMoveAnableDetect chan bool
@@ -54,6 +54,8 @@ type VideoControlService struct {
 }
 
 func NewVideoControlService(
+	cancelCtx context.Context,
+	cancelCtxFunc context.CancelFunc, 
     recorder recording.Recorder,
     cam camera.Camera,
     cameraWorker *worker.CameraWorker,
@@ -75,10 +77,34 @@ func NewVideoControlService(
 	}
 	
 	videoControlService.startButton = component.NewStartButton()
-	videoControlService.startButton.SetOnTapped(videoControlService.start)
+	/*
+	btn.OnTapped = func() {
+		// Pass the context explicitly to your service method here
+		svc.DoWork(ctx, btn.Text)
+	}
+
+	*/
+	videoControlService.startButton.SetOnTapped(
+		/*videoControlService.start*/
+		func() {
+			// Pass the context explicitly to your service method here
+			//svc.DoWork(ctx, btn.Text)
+			videoControlService.start(cancelCtx)
+		},
+	)
 
     videoControlService.stopButton = component.NewStopButton()
-	videoControlService.stopButton.SetOnTapped(videoControlService.stop)
+	videoControlService.stopButton.SetOnTapped(
+		//videoControlService.stop
+		func() {
+			// Pass the context explicitly to your service method here
+			//svc.DoWork(ctx, btn.Text)
+			videoControlService.stop(
+				cancelCtx, 
+				cancelCtxFunc,
+			)
+		},
+	)
 
 	//init border
 	videoControlService.faceButtonBorder = canvas.NewRectangle(color.Transparent)
@@ -87,7 +113,14 @@ func NewVideoControlService(
 
 	videoControlService.moveButtonBorder = canvas.NewRectangle(color.Transparent)
 	videoControlService.moveDetectButton = component.NewMoveDetectButton()
-	videoControlService.moveDetectButton.SetOnTapped(videoControlService.toggleMoveDetection)
+	videoControlService.moveDetectButton.SetOnTapped(
+		//videoControlService.toggleMoveDetection,
+		func() {
+			// Pass the context explicitly to your service method here
+			//svc.DoWork(ctx, btn.Text)
+			videoControlService.toggleMoveDetection(cancelCtx)
+		},
+	)
 
     videoControlService.stopButton.Hide()
 
@@ -102,8 +135,7 @@ func NewVideoControlService(
 	
 }
 
-func (s *VideoControlService) start() {
-	
+func (s *VideoControlService) start(calcelCtx context.Context) {
 	log.Println("Starting camera...")
 
 	s.startButton.Hide()
@@ -139,32 +171,37 @@ func (s *VideoControlService) start() {
 	// If 5 seconds pass first, childCtx times out independently.
 	childCtx, cancelTimeout := context.WithTimeout(parentCtx, 5*time.Second)
 	defer cancelTimeout() // Clean up timer resources when done
+	//TODO inside s.virtualCameraWorker.Run coee use context in 3 different place and 
+	//batter to create child context from parent context and create own timeout for every logic
 	*/
+	
+	/*
 	var ctx context.Context
 
+	//this is parent ontext and batter move it to main.go file
 	ctx, s.cancelContext = context.WithCancel(
 		context.Background(),
-	)
+	)*/
 		
 	// 🟢 Motion detection listening
-	s.motionHandler(ctx)
+	s.motionHandler(calcelCtx)
 
 	// Start camera worker.
 	//chanIsFaceDetect - chan event to handle state in goroutines
 	
-	frameChan, _/*faceImageChan*/ := s.cameraWorker.Run(ctx, s.chanIsFaceDetect)
+	frameChan, _/*faceImageChan*/ := s.cameraWorker.Run(calcelCtx, s.chanIsFaceDetect)
 
 	// Start preview and recording workers.
 	//TODO maybe better - face motion goroutines move to frameProcessingWorker
 	//TEST - At 30 FPS, you have approximately 33.33 ms per frame.
 	//NEED TO Check if this place works not slower that 33.33ms - s.frameProcessingWorker
-	s.frameProcessingWorker.Run(ctx, s.chanFaceMotionResultChan, s.chanIsMoveDetect, s.chanMoveAnableDetect)
+	s.frameProcessingWorker.Run(calcelCtx, s.chanFaceMotionResultChan, s.chanIsMoveDetect, s.chanMoveAnableDetect)
 	// Start the virtual-camera worker loop.
 	// This loop consumes frames, but FFmpeg remains stopped until
 	// the user clicks Start Virtual Camera.
 	//TODO move to frameProcessingWorker or do not need 
 	go s.virtualCameraWorker.Run(
-		ctx,
+		calcelCtx,
 		s.frameProcessingWorker.GetVirtualCameraFrame(),
 	)
 		
@@ -175,7 +212,7 @@ func (s *VideoControlService) start() {
 	// push push values to ther goroutines inside frameProcessingWorker.Run()
 	//TODO попробывать запустить этот метод в frameProcessingWorker.Run после goroutines + вместо 3-х каналов попробывать использовать 1
 	go func() {
-		s.frameProcessingWorker.PushJob(ctx, frameChan)		
+		s.frameProcessingWorker.PushJob(calcelCtx, frameChan)		
 	}()
 
 	//TODO in this place run face_service logic in separate goroutines
@@ -183,7 +220,10 @@ func (s *VideoControlService) start() {
 	//go faceWorker.Run(ctx, frameChan)
 }
 
-func (s *VideoControlService) stop() {
+func (s *VideoControlService) stop(
+	cancelCtx context.Context,
+	cancelCtxFunc context.CancelFunc, 
+) {
 	//TODO need to add channel to send bool value that user click on stop button - to add empty frame into preview
     log.Println("Stopping camera...")
 
@@ -197,8 +237,8 @@ func (s *VideoControlService) stop() {
 	})
 	*/
 
-	if s.cancelContext != nil {
-		s.cancelContext()
+	if cancelCtx != nil {
+		cancelCtxFunc()
 	}
 
 	// Stop the camera first so CameraWorker can finish.
@@ -410,7 +450,7 @@ func (s *VideoControlService) toggleFaceDetection() {
 	}
 }
 
-func (s *VideoControlService) toggleMoveDetection() {
+func (s *VideoControlService) toggleMoveDetection(cancelCtx context.Context) {
 	s.isMoveDetect = !s.isMoveDetect
 
 	if s.isMoveDetect {
@@ -418,7 +458,7 @@ func (s *VideoControlService) toggleMoveDetection() {
 		s.moveButtonBorder.StrokeWidth = 3
 
 		//run preview and video record
-		s.start()
+		s.start(cancelCtx)
 	} else {
 		s.moveButtonBorder.StrokeColor = color.Transparent
 		s.moveButtonBorder.StrokeWidth = 0
