@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 	"time"
-	"os"
+	//"os"
 	"embed"
 	"context"
 	
@@ -69,6 +69,7 @@ func main() {
 	// Load .env file if present (ignore error if running with system env vars)
 	_ = godotenv.Load()
 
+	/*
 	dbURL := os.Getenv("DATABASE_URL")
 	// 2. Parse the config and/or pool settings
 	poolConfig, err := pgxpool.ParseConfig(dbURL)
@@ -93,7 +94,7 @@ func main() {
 	if err := dbPool.Ping(ctx); err != nil {
 		log.Fatalf("Unable to ping database: %v", err)
 	}
-
+	
 	// 1. Intercept CLI migration commands before starting Fyne
 	if len(os.Args) > 1 && os.Args[1] == "migrate" {
 		command := "up"
@@ -108,7 +109,7 @@ func main() {
 		}
 		return // Exit without opening the Fyne window
 	}
-
+	*/
 
 	// ----------------------------------------
 	// Camera
