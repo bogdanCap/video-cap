@@ -6,15 +6,15 @@ services:
     image: pgvector/pgvector:pg17
     container_name: app_postgres_db
     environment:
-      POSTGRES_USER: db_user
-      POSTGRES_PASSWORD: secure_password_123
-      POSTGRES_DB: app_record
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
       # Maps port 5432 of the container to port 5432 on your actual machine
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      #- ./init.sql:/docker-entrypoint-initdb.d/init.sql
 
 volumes:
   pgdata:

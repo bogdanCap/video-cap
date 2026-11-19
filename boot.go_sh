@@ -5,8 +5,7 @@ set -e
 docker compose up -d
 
 echo "⏳ Waiting for PostgreSQL database to start up..."
-# Standard tool to check if the database port is active
-while ! nc -z 127.0.0.1 5432; do
+until docker compose exec -T db pg_isready -U db_user -d app_record > /dev/null 2>&1; do
   sleep 1
 done
 
