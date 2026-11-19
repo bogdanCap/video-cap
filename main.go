@@ -114,12 +114,25 @@ func main() {
 	// ----------------------------------------
 	// Camera
 	// ----------------------------------------
+	//TODO create camera factory
+	cameraFactory := camera.NewCameraFactory()
+	cam, err := cameraFactory.Create(
+		camera.CameraConfig{
+			Type:        camera.CameraTypeUSB,
+			DevicePath:  cameraDevice,
+			Width:       cameraWidth,
+			Height:      cameraHeight,
+			FPS:         cameraFPS,
+		},
+	)
+
+	/*
 	cam, err := camera.NewV4LCamera(
 		cameraDevice,
 		cameraWidth,
 		cameraHeight,
 		cameraFPS,
-	)
+	)*/
 
 	//TODO for SCI camera instead NewV4LCamera need to use NewCSICamera
 	/*

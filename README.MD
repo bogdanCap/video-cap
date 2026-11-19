@@ -16,8 +16,10 @@ init:
     got mod tidy
     sudo apt install libgl1-mesa-dev xorg-dev
     sudo apt install ffmpeg
+    sudo apt install v4l-utils
+    sudo apt install rpicam-apps
     sudo snap install goose
-
+    
     go get github.com/pressly/goose/v3
         go install github.com/pressly/goose/v3/cmd/goose@latest
         +
@@ -41,7 +43,13 @@ for clone project:
     go mod tidy
 
 check usb devide:
-    v4l2-ctl --list-devices
+    usb cam:
+        v4l2-ctl --list-devices   
+        v4l2-ctl -d /dev/video0 --list-formats-ext 
+    sci cam:
+        rpicam-hello --list-cameras
+        test:
+            rpicam-vid -t 10000 -n --codec mjpeg -o test.mjpeg
 
 Diagnostic:
     # - this need to check version of the tools
