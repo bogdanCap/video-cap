@@ -10,6 +10,8 @@ import (
 	"os/exec"
 	"strconv"
 	"sync"
+	"time"
+	"log"
 )
 
 type CSICamera struct {
@@ -18,6 +20,9 @@ type CSICamera struct {
 	stdout io.ReadCloser
 
 	mu sync.Mutex
+
+	fpsFrames int
+    fpsStart  time.Time
 }
 
 func NewCSICamera(
@@ -53,6 +58,7 @@ func NewCSICamera(
 		cmd:    cmd,
 		reader: bufio.NewReader(stdout),
 		stdout: stdout,
+		fpsStart: time.Now(),
 	}, nil
 }
 
@@ -100,6 +106,21 @@ func (c *CSICamera) Read() ([]byte, error) {
 
 		prev = b
 	}
+
+	// FPS measurement.
+    c.fpsFrames++
+
+    elapsed := time.Since(c.fpsStart)
+
+    if elapsed >= time.Second {
+        fps := float64(c.fpsFrames) / elapsed.Seconds()
+
+        log.Printf("CSI Camera FPS: %.2f", fps)
+
+        c.fpsFrames = 0
+        c.fpsStart = time.Now()
+    }
+
 
 	return frame.Bytes(), nil
 }
