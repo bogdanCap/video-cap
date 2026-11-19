@@ -120,6 +120,14 @@ func main() {
 		cameraFPS,
 	)
 
+	//TODO for SCI camera instead NewV4LCamera need to use NewCSICamera
+	/*
+	cam, err := camera.NewCSICamera(
+		cameraWidth,
+		cameraHeight,
+		cameraFPS,
+	)*/
+
 	if err != nil {
 		log.Fatal(err)
 	}
