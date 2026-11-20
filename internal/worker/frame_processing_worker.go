@@ -280,14 +280,15 @@ func (w *FrameProcessingWorker) recordingWorker(
 			}
 			
 
-			/* without goroutines
+			
 			if err := w.recorder.WriteFrame(frame); err != nil {
                 log.Println("recording:", err)
                 return
-            }*/
+            }
 
 
 			//logic with timeout
+			/*
 			done := make(chan error, 1)
 
 			//TODO in future i think batter not to use goroutines here (Your timeout protects the recording worker, but not the underlying FFmpeg operation.)
@@ -318,6 +319,7 @@ func (w *FrameProcessingWorker) recordingWorker(
 			}
 
 			cancel() // Automatically cleans up no matter which case matches
+			*/
 			
 
 			/*
