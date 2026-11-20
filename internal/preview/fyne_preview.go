@@ -1,15 +1,16 @@
 package preview
 
 import (
-	"bytes"
-	"fmt"
+	//"bytes"
+	//"fmt"
 	"image"
 	"image/color"
-	"image/jpeg"
+	//"image/jpeg"
 	"fyne.io/fyne/v2/container"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
+	"golang.org/x/image/draw"
 )
 
 // MirrorImage wraps any image.Image and flips it horizontally.
@@ -33,16 +34,24 @@ func (m MirrorImage) At(x, y int) color.Color {
 type FynePreview struct {
 	image *canvas.Image
 	container *fyne.Container
+	buf    *image.RGBA
 }
 
+const (
+	previewWidth = 640
+	previewHeight = 360
+)
+
 func NewFynePreview(
-	width int,
-	height int,
+	//width int,
+	//height int,
 ) *FynePreview {
-	//Initialize UI elements
-	img := canvas.NewImageFromImage(
-		image.NewRGBA(image.Rect(0, 0, width, height)),
+	buf := image.NewRGBA(
+		image.Rect(0, 0, previewWidth, previewHeight),
 	)
+
+	//Initialize UI elements
+	img := canvas.NewImageFromImage(buf)
 
 	//// Preserves the aspect ratio
 	img.FillMode = canvas.ImageFillContain
@@ -51,13 +60,14 @@ func NewFynePreview(
 	img.ScaleMode = canvas.ImageScalePixels
 
 	// Enforce a minimum base interface dimension
-	img.SetMinSize(fyne.NewSize(float32(width), float32(height)))
+	img.SetMinSize(fyne.NewSize(float32(previewWidth), float32(previewHeight)))
 
 	content := container.NewWithoutLayout(img)
 
 	return &FynePreview{
 		image:     img,
 		container: content,
+		buf: buf,
 	}
 }
 
@@ -66,8 +76,10 @@ func (p *FynePreview) Widget() fyne.CanvasObject {
 }
 
 func (p *FynePreview) ShowFrame(
-	frame []byte,
+	frame /*[]byte*/ image.Image,
 ) error {
+	//DOTO trhis already done in camera worker and do not need to di it twice
+	/*
 	img, err := jpeg.Decode(
 		bytes.NewReader(frame),
 	)
@@ -77,7 +89,7 @@ func (p *FynePreview) ShowFrame(
 			"decode JPEG frame: %w",
 			err,
 		)
-	}
+	}*/
 
 	/*
 	start := time.Now()
@@ -99,12 +111,21 @@ func (p *FynePreview) ShowFrame(
 	elapsed := time.Since(start)
 	fmt.Printf("Image flip processing took: %s\n", elapsed)*/
 
+	// 2. Downscale 1280x720 -> 640x360 directly into the reused buffer
+	// Using draw.Src skips alpha blending for maximum speed
+	draw.NearestNeighbor.Scale(p.buf, p.buf.Bounds(), frame, frame.Bounds(), draw.Src, nil)
+
+
 	// Fyne UI update.
 	fyne.Do(func() {
-		p.image.Image = img
+		p.image.Image = p.buf//img
 		//p.image.Image = flippedRGBA
 
-		//TODO check fithout this line
+		/*
+		if targetSize := p.container.Size(); p.image.Size() != targetSize {
+			p.image.Resize(targetSize)
+		}*/
+
 		p.image.Resize(
 			p.container.Size(),
 		)

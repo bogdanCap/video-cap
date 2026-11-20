@@ -6,6 +6,9 @@ import (
 	"time"
 	"sync"
 	"errors" 
+	"image"
+	"bytes"
+	"image/jpeg"
 
 	"github.com/bogdanCap/video-cap/internal/preview"
 	"github.com/bogdanCap/video-cap/internal/recording"
@@ -21,7 +24,7 @@ type FrameProcessingWorker struct {
 	recorder recording.Recorder
 	faceMotion *motiontracker.MotionTracker
 
-	previewChan   chan []byte
+	previewChan   chan image.Image/*[]byte*/
 	recordingChan chan []byte
 	faceMotionChan chan []byte//chan detection.Face
 	virtualCameraChan chan []byte
@@ -42,7 +45,7 @@ func NewFrameProcessingWorker(
 		faceMotion: faceMotion,
 
 		// Small buffer because preview can drop frames.
-		previewChan: make(chan []byte, 1),
+		previewChan: make(chan image.Image/*[]byte*/, 1),
 
 		// Larger buffer because recording must not drop frames.
 		recordingChan: make(chan []byte, 30),
@@ -90,7 +93,7 @@ func (w *FrameProcessingWorker) Wait() {
 
 func (w *FrameProcessingWorker) PushJob(
 	ctx context.Context,
-	frameChan <-chan []byte,
+	frameChan <-chan image.Image/*[]byte*/,
 	//frame []byte,
 	//faceFrame detection.Face,
 ) {
@@ -106,6 +109,20 @@ func (w *FrameProcessingWorker) PushJob(
 				return
 			}
 
+			var outBuf bytes.Buffer
+			completFrameByteErr := jpeg.Encode(
+				&outBuf, 
+				frame, 
+				&jpeg.Options{Quality: 75},
+			)
+
+			if completFrameByteErr != nil {
+				log.Println("camera frame flip convert to byte: ", completFrameByteErr)
+				
+				return
+			}
+			frameByte := outBuf.Bytes()
+
 			select {
 			case w.previewChan <- frame:
 			default:
@@ -113,13 +130,13 @@ func (w *FrameProcessingWorker) PushJob(
 			}
 
 			select {
-			case w.recordingChan <- frame:
+			case w.recordingChan <- frameByte:
 			case <-ctx.Done():
 				return
 			}
 
 			select {
-			case w.faceMotionChan <- frame:
+			case w.faceMotionChan <- frameByte:
 			case <-ctx.Done():
 				return
 			}
@@ -127,7 +144,7 @@ func (w *FrameProcessingWorker) PushJob(
 			// Virtual camera has its own channel.
 			// Don't block the main pipeline if FFmpeg is slow or disabled.
 			select {
-			case w.virtualCameraChan <- frame:
+			case w.virtualCameraChan <- frameByte:
 			default:
 				// Drop frame
 			}
@@ -262,17 +279,25 @@ func (w *FrameProcessingWorker) recordingWorker(
 				}
 			}
 			
+
+			/* without goroutines
+			if err := w.recorder.WriteFrame(frame); err != nil {
+                log.Println("recording:", err)
+                return
+            }*/
+
+
+			//logic with timeout
 			done := make(chan error, 1)
 
+			//TODO in future i think batter not to use goroutines here (Your timeout protects the recording worker, but not the underlying FFmpeg operation.)
 			// Run WriteFrame in another goroutine, this needed for timeout - if ShowFrame freez - code continue to work.
 			go func() {
-				//done <- w.recorder.WriteFrame(frame)
 				done <- w.writeFrame(frame)
 			}()
 
 			//timer := time.NewTimer(recordingTimeout)
 			timeoutCtx, cancel := context.WithTimeout(cancelCtx, recordingTimeout)
-			defer cancel() // Automatically cleans up no matter which case matches
 
 			select {
 			case err := <-done:
@@ -282,12 +307,18 @@ func (w *FrameProcessingWorker) recordingWorker(
 			case <-timeoutCtx.Done():
 				if errors.Is(timeoutCtx.Err(), context.DeadlineExceeded) {
 					log.Println("recording timeout - skip current job")
+
+					//TODO for Future need to add Abort() methid into w.Abort()
+    				continue
 				} else {
 					log.Println("recording worker stopped")
 					// Note: you'll need standard control flow variables if you intend 
 					// to 'return' or 'break' the outer loop from here.
 				}
 			}
+
+			cancel() // Automatically cleans up no matter which case matches
+			
 
 			/*
 			select {

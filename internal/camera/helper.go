@@ -62,6 +62,30 @@ func flipYCbCr(src *image.YCbCr) *image.YCbCr {
 }
 
 func flipRGBA(src *image.RGBA) *image.RGBA {
+	//TODO this logic test and replace with this
+	
+	bounds := src.Bounds()
+
+    dst := image.NewRGBA(bounds)
+
+    width := bounds.Dx()
+    height := bounds.Dy()
+
+    for y := 0; y < height; y++ {
+        for x := 0; x < width; x++ {
+            srcOffset := y*src.Stride + x*4
+            dstOffset := y*dst.Stride + (width-1-x)*4
+
+            copy(
+                dst.Pix[dstOffset:dstOffset+4],
+                src.Pix[srcOffset:srcOffset+4],
+            )
+        }
+    }
+
+    return dst
+	
+	/*
 	bounds := src.Bounds()
 	dst := image.NewRGBA(bounds)
 
@@ -75,7 +99,7 @@ func flipRGBA(src *image.RGBA) *image.RGBA {
 		}
 	}
 
-	return dst
+	return dst*/
 	//if need to disabled
 	//return src
 }
