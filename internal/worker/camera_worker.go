@@ -7,6 +7,7 @@ import (
 	"image/jpeg"
 	"bytes"
 	"time"
+	"image"
 
 	"github.com/bogdanCap/video-cap/internal/camera"
 	"github.com/bogdanCap/video-cap/internal/detection"
@@ -32,9 +33,13 @@ func NewCameraWorker(
 	}
 }
 
-func (w *CameraWorker) Run(cancelCtx context.Context, chanIsFaceDetect <-chan bool) (<-chan []byte, <-chan detection.Face) {
+func (w *CameraWorker) Run(cancelCtx context.Context, chanIsFaceDetect <-chan bool) (<-chan image.Image/*[]byte*/, <-chan detection.Face) {
 	//TODO test speed replace 30 length with 2
-	frameChan := make(chan []byte, 30)
+	//usb logic 30 buffer
+	//frameChan := make(chan []byte, 30)
+	//csi logic 1 buffer
+	frameChan := make(chan image.Image/*[]byte*/, 1)
+	//TODO for csi camera buffer change from 30 to 1
 	//frameChan := make(chan []byte, 2) - this need if we need better live preview image 
 	//faceImageChan := make(chan detection.Face, 30)
 
@@ -182,11 +187,13 @@ func (w *CameraWorker) Run(cancelCtx context.Context, chanIsFaceDetect <-chan bo
 			}
 
 
+			//TODO this need to to outside and return flipFrame
+			/*
 			var outBuf bytes.Buffer
 			completFrameByteErr := jpeg.Encode(
 				&outBuf, 
 				flipFrame, 
-				&jpeg.Options{Quality: 90},
+				&jpeg.Options{Quality: 75},
 			)
 
 			if completFrameByteErr != nil {
@@ -194,12 +201,14 @@ func (w *CameraWorker) Run(cancelCtx context.Context, chanIsFaceDetect <-chan bo
 				
 				return
 			}
-			completeFrame := outBuf.Bytes()
+			completeFrame := outBuf.Bytes()*/
 
 			//TODO instead frameChan need to use Struct with property originFrame (foriginFrame) and face (lastFace)
 			//TODO this need for face_service lgic
 
 			// Send frame to the channel.
+			// usb logic
+			/*
 			select {
 			case frameChan <- completeFrame:
 			//case faceImageChan <- *lastFace:	
@@ -208,15 +217,22 @@ func (w *CameraWorker) Run(cancelCtx context.Context, chanIsFaceDetect <-chan bo
 				log.Println("camera worker stopped")
 
 				return
-			/* this need if we change frameChan from 30 to 2
-			case <-time.After(33 * time.Millisecond):
-				// ⚠️ Downstream workers are backed up! 
-				// We discard this frame to keep the loop synchronized with real-time reality.
-				log.Println("[CameraWorker] Downstream pipeline lagging! Frame dropped after 33ms.")
-				*/
+			//TODO old default change with new one
 			default:
 				// The massive 30-frame buffer is 100% full! Drop immediately to prevent infinite memory growth
     			log.Println("[CameraWorker] Buffer completely full! Dropping frame.")
+			}*/
+			select {
+			case <-cancelCtx.Done():
+				log.Println("camera worker stopped")
+				return
+			default:
+				// Drain any unread stale frame so the newest frame always gets in
+				select {
+				case <-frameChan:
+				default:
+				}
+				frameChan <- flipFrame//completeFrame
 			}
 		}
 	}()

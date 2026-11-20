@@ -45,8 +45,8 @@ const (
 	cameraFPS    = 30
 
 	// Saved video configuration.
-	recordingWidth  = 1920
-	recordingHeight = 1080
+	recordingWidth  = 1024 //1920
+	recordingHeight = 720 //1080
 
 	// Directory for MP4 files.
 	recordingDir = "recordings"
@@ -119,8 +119,8 @@ func main() {
 		camera.CameraConfig{
 			Type:        camera.CameraTypeUSB,
 			DevicePath:  cameraDevice,
-			Width:       cameraWidth,
-			Height:      cameraHeight,
+			Width:       recordingWidth,//cameraWidth,
+			Height:      recordingHeight,//cameraHeight,
 			FPS:         cameraFPS,
 		},
 	)
@@ -163,10 +163,7 @@ func main() {
 	// Preview
 	// ----------------------------------------
 
-	videoPreview := preview.NewFynePreview(
-		cameraWidth,//320,//cameraWidth,
-		cameraHeight,//240,//cameraHeight,
-	)
+	videoPreview := preview.NewFynePreview()
 
 	// ----------------------------------------
 	// Recorder

@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"sync"
 	"time"
-	"log"
+	//"log"
 )
 
 type CSICamera struct {
@@ -108,6 +108,7 @@ func (c *CSICamera) Read() ([]byte, error) {
 	}
 
 	// FPS measurement.
+	/*
     c.fpsFrames++
 
     elapsed := time.Since(c.fpsStart)
@@ -119,7 +120,7 @@ func (c *CSICamera) Read() ([]byte, error) {
 
         c.fpsFrames = 0
         c.fpsStart = time.Now()
-    }
+    }*/
 
 
 	return frame.Bytes(), nil
