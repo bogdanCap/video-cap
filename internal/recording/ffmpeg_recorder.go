@@ -101,6 +101,23 @@ func (r *FFmpegRecorder) startChunk() error {
 		"-pix_fmt", "yuv420p",
 		filename,
 	}
+
+
+	/*
+	ffmpeg := exec.Command(
+		"ffmpeg",
+		"-y",
+		"-f", "h264",
+		"-i", "pipe:0",
+		"-c:v", "copy", outputFile, // Output 1: Save file
+		"-vf", "scale=640:360,fps=15", // Output 2: Lightweight preview
+		"-f", "mjpeg",
+		"-q:v", "5",
+		"pipe:1",
+	)
+	*/
+
+
 	cmd := exec.Command(
 		"ffmpeg",
 		args...

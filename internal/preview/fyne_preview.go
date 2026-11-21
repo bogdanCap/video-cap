@@ -5,6 +5,8 @@ import (
 	//"fmt"
 	"image"
 	"image/color"
+	"log"
+
 	//"image/jpeg"
 	"fyne.io/fyne/v2/container"
 
@@ -34,7 +36,9 @@ func (m MirrorImage) At(x, y int) color.Color {
 type FynePreview struct {
 	image *canvas.Image
 	container *fyne.Container
-	buf    *image.RGBA
+	//buf    *image.RGBA
+	bufs      [2]*image.RGBA
+	bufIdx    int
 }
 
 const (
@@ -46,6 +50,7 @@ func NewFynePreview(
 	//width int,
 	//height int,
 ) *FynePreview {
+	/*
 	buf := image.NewRGBA(
 		image.Rect(0, 0, previewWidth, previewHeight),
 	)
@@ -68,6 +73,23 @@ func NewFynePreview(
 		image:     img,
 		container: content,
 		buf: buf,
+	}*/
+
+	buf0 := image.NewRGBA(image.Rect(0, 0, previewWidth, previewHeight))
+	buf1 := image.NewRGBA(image.Rect(0, 0, previewWidth, previewHeight))
+
+	img := canvas.NewImageFromImage(buf0)
+	img.FillMode = canvas.ImageFillContain
+	img.ScaleMode = canvas.ImageScalePixels
+	img.SetMinSize(fyne.NewSize(float32(previewWidth), float32(previewHeight)))
+
+	// container.NewStack automatically stretches img to match the container size
+	content := container.NewStack(img)
+
+	return &FynePreview{
+		image:     img,
+		container: content,
+		bufs:      [2]*image.RGBA{buf0, buf1},
 	}
 }
 
@@ -76,7 +98,7 @@ func (p *FynePreview) Widget() fyne.CanvasObject {
 }
 
 func (p *FynePreview) ShowFrame(
-	frame /*[]byte*/ image.Image,
+	img image.Image/*[]byte*/,
 ) error {
 	//DOTO trhis already done in camera worker and do not need to di it twice
 	/*
@@ -91,28 +113,11 @@ func (p *FynePreview) ShowFrame(
 		)
 	}*/
 
-	/*
-	start := time.Now()
-	// Wrap the image to flip it like a mirror
-	bounds := img.Bounds()
-	flippedRGBA := image.NewRGBA(bounds)
-
-	// Process the pixels sequentially
-	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			// Calculate the opposite source pixel coordinate
-			flippedX := bounds.Max.X - 1 - (x - bounds.Min.X)
-			
-			// Take the pixel from the mirrored position and place it sequentially at (x, y)
-			flippedRGBA.Set(x, y, img.At(flippedX, y))
-		}
-	}
-
-	elapsed := time.Since(start)
-	fmt.Printf("Image flip processing took: %s\n", elapsed)*/
+	
 
 	// 2. Downscale 1280x720 -> 640x360 directly into the reused buffer
 	// Using draw.Src skips alpha blending for maximum speed
+	/*
 	draw.NearestNeighbor.Scale(p.buf, p.buf.Bounds(), frame, frame.Bounds(), draw.Src, nil)
 
 
@@ -125,6 +130,32 @@ func (p *FynePreview) ShowFrame(
 		if targetSize := p.container.Size(); p.image.Size() != targetSize {
 			p.image.Resize(targetSize)
 		}*/
+	/*
+		p.image.Resize(
+			p.container.Size(),
+		)
+
+		p.image.Refresh()
+	})*/
+
+
+
+	if img == nil {
+		log.Println("img is nil and preview do not works")
+
+		return nil
+	}
+
+	// Pick the back buffer that Fyne is NOT currently rendering
+	dst := p.bufs[p.bufIdx]
+	p.bufIdx = (p.bufIdx + 1) % 2
+
+	// Fast downscale into the back buffer
+	draw.NearestNeighbor.Scale(dst, dst.Bounds(), img, img.Bounds(), draw.Src, nil)
+
+	// Swap buffer pointer on the Fyne UI thread
+	fyne.Do(func() {
+		p.image.Image = dst
 
 		p.image.Resize(
 			p.container.Size(),

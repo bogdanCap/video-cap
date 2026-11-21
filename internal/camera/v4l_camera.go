@@ -2,6 +2,8 @@ package camera
 
 import (
 	"fmt"
+	"bytes"
+	"image/jpeg"
 
 	//TODO exist library 	"gocv.io/x/gocv" we can use it instead v4l
 	"github.com/korandiz/v4l"
@@ -76,10 +78,10 @@ func NewV4LCamera(
 	}, nil
 }
 
-func (c *V4LCamera) Read() ([]byte, error) {
+func (c *V4LCamera) Read() (FrameRead, error) {
 	buf, err := c.device.Capture()
 	if err != nil {
-		return nil, fmt.Errorf("capture frame: %w", err)
+		return FrameRead{}, fmt.Errorf("capture frame: %w", err)
 	}
 
 	// Copy the frame from the V4L2 buffer.
@@ -87,10 +89,27 @@ func (c *V4LCamera) Read() ([]byte, error) {
 
 	n, err := buf.Read(frame)
 	if err != nil {
-		return nil, fmt.Errorf("read frame: %w", err)
+		return FrameRead{}, fmt.Errorf("read frame: %w", err)
 	}
 
-	return frame[:n], nil
+	// Clone raw bytes safely so FFmpeg worker can consume them concurrently
+	jpegBytes := bytes.Clone(frame[:n])
+
+	// Decode once for Fyne preview
+	img, err := jpeg.Decode(bytes.NewReader(jpegBytes))
+	if err != nil {
+		return FrameRead{}, fmt.Errorf("decode JPEG frame: %w", err)
+	}
+
+
+	//return frame.Bytes(), nil
+
+	return FrameRead{
+		JPEGBytes: frame[:n]/*jpegBytes*/,
+		Image: img,
+	}, nil
+
+	//return frame[:n], nil
 }
 
 func (c *V4LCamera) Stop() error {

@@ -19,13 +19,13 @@ type CameraConfig struct {
     FPS         uint32
 }
 
-type CameraFactory struct{}
+type CameraStrategy struct{}
 
-func NewCameraFactory() *CameraFactory {
-    return &CameraFactory{}
+func NewCameraFactory() *CameraStrategy {
+    return &CameraStrategy{}
 }
 
-func (f *CameraFactory) Create(
+func (f *CameraStrategy) Create(
     config CameraConfig,
 ) (Camera, error) {
 
