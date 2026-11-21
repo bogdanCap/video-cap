@@ -32,7 +32,7 @@ type VideoControlService struct {
 	// Video dependencies
 	recorder              recording.Recorder
 	cam                   camera.Camera
-	cameraWorker          *worker.CameraWorker
+	cameraWorker          worker.CameraWorker
 	frameProcessingWorker *worker.FrameProcessingWorker
 	virtualCameraWorker   *worker.VirtualCameraWorker
 
@@ -58,7 +58,7 @@ func NewVideoControlService(
 	cancelCtxFunc context.CancelFunc, 
     recorder recording.Recorder,
     cam camera.Camera,
-    cameraWorker *worker.CameraWorker,
+    cameraWorker worker.CameraWorker,
     frameProcessingWorker *worker.FrameProcessingWorker,
 	virtualCameraWorker *worker.VirtualCameraWorker,
 	onStopWindow func(),

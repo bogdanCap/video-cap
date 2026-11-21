@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"sync"
 	"time"
+	"image/jpeg"
 	//"log"
 )
 
@@ -36,11 +37,35 @@ func NewCSICamera(
 		"-t", "0",
 		"-n",
 		"--codec", "mjpeg",
+		"--quality", "75", // Cuts JPEG []byte size in half -> faster jpeg.Decode()
 		"--width", strconv.Itoa(width),
 		"--height", strconv.Itoa(height),
 		"--framerate", strconv.FormatUint(uint64(fps), 10),
 		"-o", "-",
 	)
+
+	/* check this
+	rpicam := exec.Command(
+		"rpicam-vid",
+		"-t", "0",          // Record until stopped
+		"-n",               // Disable built-in fullscreen preview window
+		"--width", "1920",
+		"--height", "1080",
+		"--framerate", "30",
+		"--inline",         // Required for clean stream splitting
+		"-o", "-",          // Output to stdout
+	)
+
+	"rpicam-vid",
+	"-t", "0",
+	"-n",
+	"--codec", "mjpeg",
+	"--quality", "75", // Cuts JPEG []byte size in half -> faster jpeg.Decode()
+	"--width", strconv.Itoa(width),
+	"--height", strconv.Itoa(height),
+	"--framerate", strconv.FormatUint(uint64(fps), 10),
+	"-o", "-",
+	*/
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -63,7 +88,7 @@ func NewCSICamera(
 }
 
 // Read returns one JPEG frame.
-func (c *CSICamera) Read() ([]byte, error) {
+func (c *CSICamera) Read() (FrameRead, error) {
 
 	var frame bytes.Buffer
 
@@ -71,7 +96,7 @@ func (c *CSICamera) Read() ([]byte, error) {
 	for {
 		b, err := c.reader.ReadByte()
 		if err != nil {
-			return nil, fmt.Errorf("read JPEG start: %w", err)
+			return FrameRead{}, fmt.Errorf("read JPEG start: %w", err)
 		}
 
 		if b != 0xFF {
@@ -80,7 +105,7 @@ func (c *CSICamera) Read() ([]byte, error) {
 
 		next, err := c.reader.ReadByte()
 		if err != nil {
-			return nil, fmt.Errorf("read JPEG start marker: %w", err)
+			return FrameRead{}, fmt.Errorf("read JPEG start marker: %w", err)
 		}
 
 		if next == 0xD8 {
@@ -89,13 +114,13 @@ func (c *CSICamera) Read() ([]byte, error) {
 		}
 	}
 
-	// Find JPEG End Of Image (FF D9).
+	// Read until JPEG End Of Image (FF D9)
 	prev := byte(0)
 
 	for {
 		b, err := c.reader.ReadByte()
 		if err != nil {
-			return nil, fmt.Errorf("read JPEG frame: %w", err)
+			return FrameRead{}, fmt.Errorf("read JPEG frame: %w", err)
 		}
 
 		frame.WriteByte(b)
@@ -122,8 +147,22 @@ func (c *CSICamera) Read() ([]byte, error) {
         c.fpsStart = time.Now()
     }*/
 
+	// Clone raw bytes safely so FFmpeg worker can consume them concurrently
+	jpegBytes := bytes.Clone(frame.Bytes())
 
-	return frame.Bytes(), nil
+	// Decode once for Fyne preview
+	img, err := jpeg.Decode(bytes.NewReader(jpegBytes))
+	if err != nil {
+		return FrameRead{}, fmt.Errorf("decode JPEG frame: %w", err)
+	}
+
+
+	//return frame.Bytes(), nil
+
+	return FrameRead{
+		JPEGBytes:  jpegBytes,
+		Image: img,
+	}, nil
 }
 
 // Stop terminates camera capture.

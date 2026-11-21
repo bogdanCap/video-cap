@@ -7,8 +7,8 @@ import (
 	"sync"
 	"errors" 
 	"image"
-	"bytes"
-	"image/jpeg"
+	//"bytes"
+	//"image/jpeg"
 
 	"github.com/bogdanCap/video-cap/internal/preview"
 	"github.com/bogdanCap/video-cap/internal/recording"
@@ -93,7 +93,7 @@ func (w *FrameProcessingWorker) Wait() {
 
 func (w *FrameProcessingWorker) PushJob(
 	ctx context.Context,
-	frameChan <-chan image.Image/*[]byte*/,
+	frameChan <-chan FrameCaptureChan/*[]byte*/,
 	//frame []byte,
 	//faceFrame detection.Face,
 ) {
@@ -109,6 +109,7 @@ func (w *FrameProcessingWorker) PushJob(
 				return
 			}
 
+			/*
 			var outBuf bytes.Buffer
 			completFrameByteErr := jpeg.Encode(
 				&outBuf, 
@@ -121,22 +122,24 @@ func (w *FrameProcessingWorker) PushJob(
 				
 				return
 			}
-			frameByte := outBuf.Bytes()
+			frameByte := outBuf.Bytes()*/
+
+			
 
 			select {
-			case w.previewChan <- frame:
+			case w.previewChan <- frame.Image:
 			default:
 				// Drop preview frame.
 			}
 
 			select {
-			case w.recordingChan <- frameByte:
+			case w.recordingChan <- frame.JPEGBytes:
 			case <-ctx.Done():
 				return
 			}
 
 			select {
-			case w.faceMotionChan <- frameByte:
+			case w.faceMotionChan <- frame.JPEGBytes:
 			case <-ctx.Done():
 				return
 			}
@@ -144,7 +147,7 @@ func (w *FrameProcessingWorker) PushJob(
 			// Virtual camera has its own channel.
 			// Don't block the main pipeline if FFmpeg is slow or disabled.
 			select {
-			case w.virtualCameraChan <- frameByte:
+			case w.virtualCameraChan <- frame.JPEGBytes:
 			default:
 				// Drop frame
 			}

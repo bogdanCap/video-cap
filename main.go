@@ -45,8 +45,8 @@ const (
 	cameraFPS    = 30
 
 	// Saved video configuration.
-	recordingWidth  = 1024 //1920
-	recordingHeight = 720 //1080
+	recordingWidth  = 1024//1024 //1920
+	recordingHeight = 768//720 //1080
 
 	// Directory for MP4 files.
 	recordingDir = "recordings"
@@ -179,10 +179,21 @@ func main() {
 	)
 
 	// Camera worker. - read frame by frame from camera
-	cameraWorker := worker.NewCameraWorker(
-		cam,
-		detector,
+	cameraWorkerStrategy := worker.NewCameraFrameWorkerStrategy(
+		/*cam,
+		detector,*/
 	)
+	////Modify for usb cam | Clean for sci
+	cameraWorker, cameraWorkerError := cameraWorkerStrategy.Create(
+		worker.CameraFrameWorkerConfig{
+			WorkerType: worker.ModifyType,
+			Cam: cam, 
+			Detector: detector,
+		},
+	)
+	if cameraWorkerError!= nil {
+		log.Fatal(cameraWorkerError)
+	}
 
 	motionTracker := motiontracker.NewMotionTracker(
 		5.0,

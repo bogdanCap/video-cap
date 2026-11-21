@@ -24,7 +24,7 @@ func NewUIService(
 	cam camera.Camera,
 	virtualCameraWorker *worker.VirtualCameraWorker,
 	frameProcessingWorker *worker.FrameProcessingWorker,
-	cameraWorker *worker.CameraWorker,
+	cameraWorker worker.CameraWorker,
 	videoPreview *preview.FynePreview,
 ) *WindowService {
 	myApp := app.New()
