@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 	"time"
-	//"os"
+	"os"
 	"embed"
 	"context"
 	"strconv"
@@ -109,7 +109,7 @@ func main() {
 		}
 		return // Exit without opening the Fyne window
 	}
-
+	*/
 	// ----------------------------------------
 	// Camera
 	// ----------------------------------------
