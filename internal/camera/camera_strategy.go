@@ -4,12 +4,13 @@ import (
     "fmt"
 )
 
+/*
 type CameraType string
 
 const (
     CameraTypeCSI CameraType = "csi"
     CameraTypeUSB CameraType = "usb"
-)
+)*/
 
 type CameraConfig struct {
     Type        CameraType
@@ -21,7 +22,7 @@ type CameraConfig struct {
 
 type CameraStrategy struct{}
 
-func NewCameraFactory() *CameraStrategy {
+func NewCameraStrategy() *CameraStrategy {
     return &CameraStrategy{}
 }
 
@@ -31,14 +32,14 @@ func (f *CameraStrategy) Create(
 
     switch config.Type {
 
-    case CameraTypeCSI:
+    case CSIType:
         return NewCSICamera(
             config.Width,
             config.Height,
             config.FPS,
         )
 
-    case CameraTypeUSB:
+    case USBType:
 		if config.DevicePath == "" {
             return nil, fmt.Errorf("USB camera device path is required")
         }

@@ -13,6 +13,7 @@ import (
 	"github.com/bogdanCap/video-cap/internal/preview"
 	"github.com/bogdanCap/video-cap/internal/recording"
 	"github.com/bogdanCap/video-cap/internal/motiontracker"
+	"github.com/bogdanCap/video-cap/internal/camera"
 )
 
 const previewTimeout = 100 * time.Millisecond
@@ -61,7 +62,7 @@ func (w *FrameProcessingWorker) GetVirtualCameraFrame() <-chan []byte {
 	return w.virtualCameraChan
 }
 
-func (w *FrameProcessingWorker) Run(
+func (w *FrameProcessingWorker) ConsumeJob(
 	ctx context.Context, 
 	motionTrackingResultChan chan<- motiontracker.MotionResult,
 	isMoveDetectChan <-chan bool,
@@ -91,9 +92,9 @@ func (w *FrameProcessingWorker) Wait() {
 	w.wg.Wait()
 }
 
-func (w *FrameProcessingWorker) PushJob(
+func (w *FrameProcessingWorker) ProduceJob(
 	ctx context.Context,
-	frameChan <-chan FrameCaptureChan/*[]byte*/,
+	frameChan <-chan camera.FrameProcessDTO/*[]byte*/,
 	//frame []byte,
 	//faceFrame detection.Face,
 ) {

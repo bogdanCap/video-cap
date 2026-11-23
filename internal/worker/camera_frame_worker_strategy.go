@@ -7,16 +7,8 @@ import (
 	"github.com/bogdanCap/video-cap/internal/detection"
 )
 
-type workerType uint8
-
-//TODO csi and usb type move to one Enum in one place
-const (
-    ModifyType workerType = 1 // can modify frame (face, rotation, etc) for usb
-    CleanType workerType = 2 //do not modify frame for csi
-)
-
 type CameraFrameWorkerConfig struct {
-    WorkerType workerType
+    WorkerType camera.CameraType
     Cam camera.Camera
 	Detector detection.Detector
 }
@@ -33,14 +25,15 @@ func (f *CameraFrameWorkerStrategy) Create(
 
     switch config.WorkerType{
 
-    case ModifyType:
+    case camera.USBType:
+        
         return NewCameraFrameModifyWorker(
             config.Cam,
 			config.Detector,
         ), nil
 
-    case CleanType:
-		
+    case camera.CSIType:
+	
         return NewCameraFrameCleanWorker(
             config.Cam,
 			config.Detector,

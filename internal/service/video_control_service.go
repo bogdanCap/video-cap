@@ -191,11 +191,15 @@ func (s *VideoControlService) start(calcelCtx context.Context) {
 	
 	frameChan, _/*faceImageChan*/ := s.cameraWorker.Run(calcelCtx, s.chanIsFaceDetect)
 
+	go func() {
+		s.frameProcessingWorker.ProduceJob(calcelCtx, frameChan)		
+	}()
+
 	// Start preview and recording workers.
 	//TODO maybe better - face motion goroutines move to frameProcessingWorker
 	//TEST - At 30 FPS, you have approximately 33.33 ms per frame.
 	//NEED TO Check if this place works not slower that 33.33ms - s.frameProcessingWorker
-	s.frameProcessingWorker.Run(calcelCtx, s.chanFaceMotionResultChan, s.chanIsMoveDetect, s.chanMoveAnableDetect)
+	s.frameProcessingWorker.ConsumeJob(calcelCtx, s.chanFaceMotionResultChan, s.chanIsMoveDetect, s.chanMoveAnableDetect)
 	// Start the virtual-camera worker loop.
 	// This loop consumes frames, but FFmpeg remains stopped until
 	// the user clicks Start Virtual Camera.
@@ -205,16 +209,6 @@ func (s *VideoControlService) start(calcelCtx context.Context) {
 		s.frameProcessingWorker.GetVirtualCameraFrame(),
 	)
 		
-	// Receive frames from CameraWorker
-	// and send them to FrameProcessingWorker.
-	// this helps ti speed up - frame push to another channel in another goroutines and this helps to works faster
-	// i try to delete this and pass frameChan directly to frameProcessingWorker.Run() and its works slower
-	// push push values to ther goroutines inside frameProcessingWorker.Run()
-	//TODO попробывать запустить этот метод в frameProcessingWorker.Run после goroutines + вместо 3-х каналов попробывать использовать 1
-	go func() {
-		s.frameProcessingWorker.PushJob(calcelCtx, frameChan)		
-	}()
-
 	//TODO in this place run face_service logic in separate goroutines
 	// Start face worker.
 	//go faceWorker.Run(ctx, frameChan)
