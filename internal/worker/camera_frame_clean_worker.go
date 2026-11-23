@@ -29,13 +29,13 @@ func NewCameraFrameCleanWorker(
 	}
 }
 
-func (w *CameraFrameCleanWorker) Run(cancelCtx context.Context, chanIsFaceDetect <-chan bool) (<-chan FrameCaptureChan/*[]byte*/, <-chan detection.Face) {
+func (w *CameraFrameCleanWorker) Run(cancelCtx context.Context, chanIsFaceDetect <-chan bool) (<-chan camera.FrameProcessDTO/*[]byte*/, <-chan detection.Face) {
 	//TODO test speed replace 30 length with 2
 	//usb logic 30 buffer
 	//frameChan := make(chan []byte, 30)
 	//csi logic 1 buffer
 	//frameChan := make(chan []byte, 1)FrameCaptureChan
-	frameCaptureChan := make(chan FrameCaptureChan, 1)
+	frameCaptureChan := make(chan camera.FrameProcessDTO, 1)
 	//TODO for csi camera buffer change from 30 to 1
 	//frameChan := make(chan []byte, 2) - this need if we need better live preview image 
 	//faceImageChan := make(chan detection.Face, 30)
@@ -228,7 +228,7 @@ func (w *CameraFrameCleanWorker) Run(cancelCtx context.Context, chanIsFaceDetect
 				case <-frameCaptureChan:
 				default:
 				}
-				frameCaptureChan <- FrameCaptureChan{JPEGBytes: completeFrame, Image: imgFrame}//completeFrame
+				frameCaptureChan <- camera.FrameProcessDTO{JPEGBytes: completeFrame, Image: imgFrame}//completeFrame
 			}
 		}
 	}()

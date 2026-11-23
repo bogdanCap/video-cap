@@ -2,19 +2,15 @@ package worker
 
 import (
 	"context"
-	"image"
+	//"image"
 
 	"github.com/bogdanCap/video-cap/internal/detection"
+	"github.com/bogdanCap/video-cap/internal/camera"
 )
 
 type CameraWorker interface {
-	Run(cancelCtx context.Context, chanIsFaceDetect <-chan bool) (<-chan FrameCaptureChan, <-chan detection.Face) 
+	Run(cancelCtx context.Context, chanIsFaceDetect <-chan bool) (<-chan camera.FrameProcessDTO, <-chan detection.Face) 
 	Wait()
-}
-
-type FrameCaptureChan struct {
-	JPEGBytes []byte      // Raw high-res JPEG bytes -> pipe directly to FFmpeg
-	Image image.Image // Decoded image -> pass directly to FynePreview
 }
 
 

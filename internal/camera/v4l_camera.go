@@ -78,10 +78,10 @@ func NewV4LCamera(
 	}, nil
 }
 
-func (c *V4LCamera) Read() (FrameRead, error) {
+func (c *V4LCamera) Read() (FrameProcessDTO, error) {
 	buf, err := c.device.Capture()
 	if err != nil {
-		return FrameRead{}, fmt.Errorf("capture frame: %w", err)
+		return FrameProcessDTO{}, fmt.Errorf("capture frame: %w", err)
 	}
 
 	// Copy the frame from the V4L2 buffer.
@@ -89,7 +89,7 @@ func (c *V4LCamera) Read() (FrameRead, error) {
 
 	n, err := buf.Read(frame)
 	if err != nil {
-		return FrameRead{}, fmt.Errorf("read frame: %w", err)
+		return FrameProcessDTO{}, fmt.Errorf("read frame: %w", err)
 	}
 
 	// Clone raw bytes safely so FFmpeg worker can consume them concurrently
@@ -98,13 +98,13 @@ func (c *V4LCamera) Read() (FrameRead, error) {
 	// Decode once for Fyne preview
 	img, err := jpeg.Decode(bytes.NewReader(jpegBytes))
 	if err != nil {
-		return FrameRead{}, fmt.Errorf("decode JPEG frame: %w", err)
+		return FrameProcessDTO{}, fmt.Errorf("decode JPEG frame: %w", err)
 	}
 
 
 	//return frame.Bytes(), nil
 
-	return FrameRead{
+	return FrameProcessDTO{
 		JPEGBytes: frame[:n]/*jpegBytes*/,
 		Image: img,
 	}, nil

@@ -6,8 +6,8 @@ import (
 	"os"
 	"embed"
 	"context"
+	"strconv"
 	
-
 	"bytes"
 	"encoding/xml"
 
@@ -109,15 +109,29 @@ func main() {
 		return // Exit without opening the Fyne window
 	}
 
-
 	// ----------------------------------------
 	// Camera
 	// ----------------------------------------
-	//TODO create camera factory
-	cameraFactory := camera.NewCameraFactory()
-	cam, err := cameraFactory.Create(
+	cameraTypeEnvRow := os.Getenv("CAMERA_TYPE")
+	cameraTypeEnv, err := strconv.Atoi(cameraTypeEnvRow)
+
+	if err != nil {
+		log.Fatalf("CAMERA_TYPE must be a number, got %q: %w", cameraTypeEnvRow, err)
+	}
+
+	cameraType, cameraTypeError := camera.CameraTypeFromInt(cameraTypeEnv)
+
+	if cameraTypeError != nil {
+		// Handle invalid config value
+		log.Fatalf("Invalid camera type: %v", cameraTypeError)
+	}
+
+	log.Println("application run with camera: ", cameraType.String())
+
+	cameraStrategy := camera.NewCameraStrategy()
+	cam, err := cameraStrategy.Create(
 		camera.CameraConfig{
-			Type:        camera.CameraTypeUSB,
+			Type:        cameraType,
 			DevicePath:  cameraDevice,
 			Width:       recordingWidth,//cameraWidth,
 			Height:      recordingHeight,//cameraHeight,
@@ -178,14 +192,12 @@ func main() {
 	)
 
 	// Camera worker. - read frame by frame from camera
-	cameraWorkerStrategy := worker.NewCameraFrameWorkerStrategy(
-		/*cam,
-		detector,*/
-	)
+	cameraWorkerStrategy := worker.NewCameraFrameWorkerStrategy()
+
 	////Modify for usb cam | Clean for sci
 	cameraWorker, cameraWorkerError := cameraWorkerStrategy.Create(
 		worker.CameraFrameWorkerConfig{
-			WorkerType: worker.ModifyType,
+			WorkerType: cameraType,
 			Cam: cam, 
 			Detector: detector,
 		},

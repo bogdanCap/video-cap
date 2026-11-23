@@ -88,7 +88,7 @@ func NewCSICamera(
 }
 
 // Read returns one JPEG frame.
-func (c *CSICamera) Read() (FrameRead, error) {
+func (c *CSICamera) Read() (FrameProcessDTO, error) {
 
 	var frame bytes.Buffer
 
@@ -96,7 +96,7 @@ func (c *CSICamera) Read() (FrameRead, error) {
 	for {
 		b, err := c.reader.ReadByte()
 		if err != nil {
-			return FrameRead{}, fmt.Errorf("read JPEG start: %w", err)
+			return FrameProcessDTO{}, fmt.Errorf("read JPEG start: %w", err)
 		}
 
 		if b != 0xFF {
@@ -105,7 +105,7 @@ func (c *CSICamera) Read() (FrameRead, error) {
 
 		next, err := c.reader.ReadByte()
 		if err != nil {
-			return FrameRead{}, fmt.Errorf("read JPEG start marker: %w", err)
+			return FrameProcessDTO{}, fmt.Errorf("read JPEG start marker: %w", err)
 		}
 
 		if next == 0xD8 {
@@ -120,7 +120,7 @@ func (c *CSICamera) Read() (FrameRead, error) {
 	for {
 		b, err := c.reader.ReadByte()
 		if err != nil {
-			return FrameRead{}, fmt.Errorf("read JPEG frame: %w", err)
+			return FrameProcessDTO{}, fmt.Errorf("read JPEG frame: %w", err)
 		}
 
 		frame.WriteByte(b)
@@ -153,13 +153,12 @@ func (c *CSICamera) Read() (FrameRead, error) {
 	// Decode once for Fyne preview
 	img, err := jpeg.Decode(bytes.NewReader(jpegBytes))
 	if err != nil {
-		return FrameRead{}, fmt.Errorf("decode JPEG frame: %w", err)
+		return FrameProcessDTO{}, fmt.Errorf("decode JPEG frame: %w", err)
 	}
-
 
 	//return frame.Bytes(), nil
 
-	return FrameRead{
+	return FrameProcessDTO{
 		JPEGBytes:  jpegBytes,
 		Image: img,
 	}, nil
