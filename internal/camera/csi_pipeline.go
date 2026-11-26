@@ -62,6 +62,7 @@ func NewCSIDualPipeline(
 	//    Output 2: Lightweight RGBA frames on pipe:1 for FynePreview
 	segmentPattern := filepath.Join(outputDir, "video_%Y%m%d_%H%M%S.mp4")
 
+	/*
 	ffmpegCmd := exec.Command(
 		"ffmpeg",
 		"-y",
@@ -82,6 +83,37 @@ func NewCSIDualPipeline(
 		segmentPattern,
 
 		// Output 2: Tiny RGBA stream for Go FynePreview (and optional horizontal flip: "hflip,scale=...")
+		"-vf", fmt.Sprintf("scale=%d:%d,fps=20", previewW, previewH),
+		"-f", "rawvideo",
+		"-pix_fmt", "rgba",
+		"pipe:1",
+	)*/
+
+	ffmpegCmd := exec.Command(
+		"ffmpeg",
+		"-y",
+
+		// --- INPUT: Raw YUV420 stream from rpicam-vid (pipe:0 / stdin) ---
+		"-f", "rawvideo",
+		"-pix_fmt", "yuv420p",
+		"-s", fmt.Sprintf("%dx%d", recWidth, recHeight),
+		"-r", strconv.FormatUint(uint64(fps), 10),
+		"-i", "pipe:0",
+
+		// --- OUTPUT 1: 1-minute crash-safe MP4 segments on disk ---
+		"-c:v", "libx264",
+		"-preset", "ultrafast",
+		"-tune", "zerolatency",
+		"-g", strconv.FormatUint(uint64(fps), 10), // Keyframe every 1 second
+		"-pix_fmt", "yuv420p",
+		"-f", "segment",
+		"-segment_time", strconv.Itoa(chunkSeconds), // 60 for 1-minute chunks
+		"-segment_format_options", "movflags=+frag_keyframe+empty_moov+default_base_moof",
+		"-strftime", "1",
+		"-reset_timestamps", "1",
+		segmentPattern,
+
+		// --- OUTPUT 2: Lightweight RGBA preview stream to Go (pipe:1 / stdout) ---
 		"-vf", fmt.Sprintf("scale=%d:%d,fps=20", previewW, previewH),
 		"-f", "rawvideo",
 		"-pix_fmt", "rgba",
@@ -157,6 +189,8 @@ func (c *CSIDualPipeline) Stop() error {
 	}
 	return nil*/
 	
+
+	/*
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -176,6 +210,40 @@ func (c *CSIDualPipeline) Stop() error {
 	if c.stdout != nil {
 		_ = c.stdout.Close()
 		c.stdout = nil
+	}
+
+	return nil
+	*/
+
+	c.mu.Lock()
+	rpicam := c.rpicamCmd
+	ffmpeg := c.ffmpegCmd
+	stdout := c.stdout
+	c.rpicamCmd = nil
+	c.ffmpegCmd = nil
+	c.stdout = nil
+	c.mu.Unlock()
+
+	// 1. Drain any remaining preview bytes from ffmpeg's stdout in the background
+	// so FFmpeg never blocks on a full stdout pipe while shutting down.
+	if stdout != nil {
+		go func() {
+			_, _ = io.Copy(io.Discard, stdout)
+			_ = stdout.Close()
+		}()
+	}
+
+	// 2. Stop rpicam-vid immediately. Because rpicam-vid only outputs raw YUV420,
+	// killing it immediately closes its stdout pipe and sends a clean EOF to FFmpeg's stdin!
+	if rpicam != nil && rpicam.Process != nil {
+		_ = rpicam.Process.Kill()
+		_ = rpicam.Wait()
+	}
+
+	// 3. Now that FFmpeg received EOF on stdin and its stdout is draining,
+	// FFmpeg flushes the last frames, writes the MP4 trailer, and exits in ~100ms.
+	if ffmpeg != nil {
+		_ = ffmpeg.Wait()
 	}
 
 	return nil
