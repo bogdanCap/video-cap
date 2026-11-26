@@ -44,8 +44,8 @@ type FynePreview struct {
 }
 
 const (
-	previewWidth = 480//640
-	previewHeight = 360
+	previewWidth = 320//480
+	previewHeight = 240//360
 	// 33 - 30fps
 	// 50 - 20fps
 	// 66 - 15fps
@@ -120,7 +120,8 @@ func (p *FynePreview) ShowFrame(
 	)*/
 
 	// Swap buffer pointer on the Fyne UI thread
-	fyne.Do(func() {
+	fyne.DoAndWait(func() {
+	//fyne.Do(func() {
 
 		p.image.Image = dst
 
