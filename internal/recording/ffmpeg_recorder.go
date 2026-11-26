@@ -78,6 +78,7 @@ func (r *FFmpegRecorder) startChunk() error {
 	//this is for face detection mode
 	//recorrds video in 640x480 as set-up in V4LCamera
 	//check video details - ffprobe video_20260923_011226.mp4
+	//version for USB vam
 	args := []string{
 		"-y",
 		// Input is a sequence of MJPEG/JPEG frames.
@@ -101,6 +102,22 @@ func (r *FFmpegRecorder) startChunk() error {
 		"-pix_fmt", "yuv420p",
 		filename,
 	}
+
+	
+	//version for csi camera
+	/*
+	args := []string{
+		"-y",
+		"-f", "rawvideo",
+		"-pix_fmt", "yuv420p",
+		"-s", fmt.Sprintf("%dx%d", r.width, r.height),
+		"-r", fmt.Sprintf("%d", r.fps),
+		"-i", "pipe:0",
+		"-c:v", "libx264",
+		"-preset", "ultrafast", // Best speed/CPU balance on Pi 5 OR veryfast (slower)
+		"-pix_fmt", "yuv420p",
+		filename,
+	}*/
 
 
 	/*

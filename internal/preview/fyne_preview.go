@@ -6,6 +6,7 @@ import (
 	"image"
 	"image/color"
 	"log"
+	"time"
 
 	//"image/jpeg"
 	"fyne.io/fyne/v2/container"
@@ -38,11 +39,14 @@ type FynePreview struct {
 	//buf    *image.RGBA
 	bufs      [2]*image.RGBA
 	bufIdx    int
+
+	
 }
 
 const (
 	previewWidth = 480//640
 	previewHeight = 360
+	minFrameGap   = 66 * time.Millisecond // Cap preview at ~15 FPS
 )
 
 func NewFynePreview(
@@ -82,6 +86,7 @@ func (p *FynePreview) ShowFrame(
 		return nil
 	}
 
+	
 	// Pick the back buffer that Fyne is NOT currently rendering
 	dst := p.bufs[p.bufIdx]
 	p.bufIdx = (p.bufIdx + 1) % 2
@@ -100,6 +105,7 @@ func (p *FynePreview) ShowFrame(
 
 	// Swap buffer pointer on the Fyne UI thread
 	fyne.Do(func() {
+
 		p.image.Image = dst
 
 		p.image.Resize(

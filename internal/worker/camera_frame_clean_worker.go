@@ -4,8 +4,8 @@ import (
 	"context"
 	"log"
 	"sync"
-	"image/jpeg"
-	"bytes"
+	//"image/jpeg"
+	//"bytes"
 	"time"
 	//"image"
 
@@ -68,7 +68,7 @@ func (w *CameraFrameCleanWorker) Run(cancelCtx context.Context, chanIsFaceDetect
 
 			//rawFrame, err := w.cam.Read()
 			frameDTO, err := w.cam.Read()
-			imgFrame := frameDTO.Image
+			//imgFrame := frameDTO.Image
 
 			if err != nil {
 				// Camera can return an error because cam.Stop()
@@ -184,7 +184,7 @@ func (w *CameraFrameCleanWorker) Run(cancelCtx context.Context, chanIsFaceDetect
 
 			//TODO this need to to outside and return flipFrame
 			
-			
+			/* this was beffor refactoring
 			var outBuf bytes.Buffer
 			completFrameByteErr := jpeg.Encode(
 				&outBuf, 
@@ -197,7 +197,7 @@ func (w *CameraFrameCleanWorker) Run(cancelCtx context.Context, chanIsFaceDetect
 				
 				return
 			}
-			completeFrame := outBuf.Bytes()
+			completeFrame := outBuf.Bytes()*/
 
 			//TODO instead frameChan need to use Struct with property originFrame (foriginFrame) and face (lastFace)
 			//TODO this need for face_service lgic
@@ -228,7 +228,7 @@ func (w *CameraFrameCleanWorker) Run(cancelCtx context.Context, chanIsFaceDetect
 				case <-frameCaptureChan:
 				default:
 				}
-				frameCaptureChan <- camera.FrameProcessDTO{JPEGBytes: completeFrame, Image: imgFrame}//completeFrame
+				frameCaptureChan <- frameDTO//camera.FrameProcessDTO{JPEGBytes: completeFrame, Image: imgFrame}//completeFrame
 			}
 		}
 	}()

@@ -2,7 +2,7 @@ package camera
 
 import (
 	"bufio"
-	"bytes"
+	//"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -10,8 +10,10 @@ import (
 	"os/exec"
 	"strconv"
 	"sync"
+	"image"
 	//"time"
-	"image/jpeg"
+	//"image/jpeg"
+	//"bytes"
 	//"log"
 )
 
@@ -20,6 +22,10 @@ type CSICamera struct {
 	reader *bufio.Reader
 	stdout io.ReadCloser
 	scanner *bufio.Scanner
+
+	width     int
+	height    int
+	frameSize int
 
 	mu sync.Mutex
 
@@ -32,13 +38,29 @@ func NewCSICamera(
 	height int,
 	fps uint32,
 ) (*CSICamera, error) {
+	if width%2 != 0 || height%2 != 0 {
+		return nil, fmt.Errorf("width and height must be even for YUV420")
+	}
 
+	//TODO mjpeg replace with YUV420 codec
+
+	/* old work
 	cmd := exec.Command(
 		"rpicam-vid",
 		"-t", "0",
 		"-n",
 		"--codec", "mjpeg",
 		"--quality", "75", // Cuts JPEG []byte size in half -> faster jpeg.Decode()
+		"--width", strconv.Itoa(width),
+		"--height", strconv.Itoa(height),
+		"--framerate", strconv.FormatUint(uint64(fps), 10),
+		"-o", "-",
+	)*/
+	cmd := exec.Command(
+		"rpicam-vid",
+		"-t", "0",
+		"-n",
+		"--codec", "yuv420",
 		"--width", strconv.Itoa(width),
 		"--height", strconv.Itoa(height),
 		"--framerate", strconv.FormatUint(uint64(fps), 10),
@@ -80,6 +102,7 @@ func NewCSICamera(
 		return nil, fmt.Errorf("start CSI camera: %w", err)
 	}
 
+	/*
 	scanner := bufio.NewScanner(stdout)
 	// Allocate a 2MB max buffer for large JPEG frames
 	scanner.Buffer(make([]byte, 64*1024), 2*1024*1024)
@@ -90,10 +113,31 @@ func NewCSICamera(
 		reader: bufio.NewReader(stdout),
 		stdout: stdout,
 		//fpsStart: time.Now(),
+	}, nil*/
+
+
+	
+	//frameSize := width * height * 3 / 2
+
+	yStride := (width + 63) &^ 63
+	alignedHeight := (height + 15) &^ 15
+	cStride := yStride / 2
+
+	ySize := yStride * alignedHeight
+	uvSize := cStride * (alignedHeight / 2)
+	frameSize := ySize + (2 * uvSize)
+
+	return &CSICamera{
+		cmd:       cmd,
+		stdout:    stdout,
+		width:     width,
+		height:    height,
+		frameSize: frameSize,
 	}, nil
 }
 
 // splitJPEG uses SIMD-accelerated bytes.Index instead of byte-by-byte loops
+/*
 func splitJPEG(data []byte, atEOF bool) (advance int, token []byte, err error) {
 	start := bytes.Index(data, []byte{0xFF, 0xD8})
 	if start == -1 {
@@ -117,7 +161,7 @@ func splitJPEG(data []byte, atEOF bool) (advance int, token []byte, err error) {
 
 	frameEnd := start + 2 + end + 2
 	return frameEnd, data[start:frameEnd], nil
-}
+}*/
 
 // Read returns one JPEG frame.
 func (c *CSICamera) Read() (FrameProcessDTO, error) {
@@ -170,6 +214,8 @@ func (c *CSICamera) Read() (FrameProcessDTO, error) {
 	// Clone raw bytes safely so FFmpeg worker can consume them concurrently
 	jpegBytes := bytes.Clone(frame.Bytes())*/
 
+
+	/*
 	//new
 	if !c.scanner.Scan() {
 		if err := c.scanner.Err(); err != nil {
@@ -196,6 +242,33 @@ func (c *CSICamera) Read() (FrameProcessDTO, error) {
 	return FrameProcessDTO{
 		JPEGBytes:  jpegBytes,
 		Image: img,
+	}, nil*/
+
+	
+	buf := make([]byte, c.frameSize)
+
+	// Read exact frame size in one go
+	if _, err := io.ReadFull(c.stdout, buf); err != nil {
+		return FrameProcessDTO{}, fmt.Errorf("read YUV420 frame: %w", err)
+	}
+
+	ySize := c.width * c.height
+	uvSize := ySize / 4
+
+	// Zero-copy wrap of the raw bytes into Go's native image.YCbCr
+	img := &image.YCbCr{
+		Y:              buf[:ySize],
+		Cb:             buf[ySize : ySize+uvSize],
+		Cr:             buf[ySize+uvSize:],
+		YStride:        c.width,
+		CStride:        c.width / 2,
+		SubsampleRatio: image.YCbCrSubsampleRatio420,
+		Rect:           image.Rect(0, 0, c.width, c.height),
+	}
+
+	return FrameProcessDTO{
+		JPEGBytes: buf,
+		Image:  img,
 	}, nil
 }
 
