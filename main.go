@@ -71,7 +71,7 @@ func main() {
 	// Load .env file if present (ignore error if running with system env vars)
 	_ = godotenv.Load()
 
-	dbURL := os.Getenv("DATABASE_URL")
+	
 	// 2. Parse the config and/or pool settings
 	/*
 	poolConfig, err := pgxpool.ParseConfig(dbURL)
@@ -98,13 +98,7 @@ func main() {
 	//	log.Fatalf("Unable to ping database: %v", err)
 	//}
 
-	dbPool, dbPoolError := repository.OpenPool(ctx, dbURL)
-
-	if dbPoolError != nil {
-		panic(dbPoolError)
-	}
-
-	defer dbPool.Close()
+	
 
 	// 4. Verify the connection
 	/*
