@@ -47,8 +47,8 @@ const (
 	cameraFPS    = 30
 
 	// Saved video configuration.
-	recordingWidth  = 1024//1024 //1920
-	recordingHeight = 768//720 //1080
+	recordingWidth  = 1024//1280//1024//1024 //1920
+	recordingHeight = 720//768//768//720 //1080
 
 	// Directory for MP4 files.
 	recordingDir = "recordings"

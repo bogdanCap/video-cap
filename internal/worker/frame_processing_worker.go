@@ -27,7 +27,7 @@ type FrameProcessingWorker struct {
 
 	previewChan   chan image.Image/*[]byte*/
 	recordingChan chan []byte
-	faceMotionChan chan []byte//chan detection.Face
+	faceMotionChan chan image.Image/*[]byte*///chan detection.Face
 	virtualCameraChan chan []byte
 
 	wg sync.WaitGroup
@@ -51,7 +51,7 @@ func NewFrameProcessingWorker(
 		// Larger buffer because recording must not drop frames.
 		recordingChan: make(chan []byte, 30),
 
-		faceMotionChan: make(chan []byte, 1),
+		faceMotionChan: make(chan image.Image/*[]byte*/, 1),
 
 		virtualCameraChan: make(chan []byte, 1),
 	}
@@ -135,14 +135,19 @@ func (w *FrameProcessingWorker) ProduceJob(
 
 			select {
 			case w.recordingChan <- frame.JPEGBytes:
-			case <-ctx.Done():
-				return
+			//case <-ctx.Done():
+			//	return
+			default:
+				//TODO in this case video can slow down and if it happend need not to drop frame and delete default logic and return case
+   				 // Drop frame if recording is busy.
 			}
 
 			select {
-			case w.faceMotionChan <- frame.JPEGBytes:
-			case <-ctx.Done():
-				return
+			case w.faceMotionChan <- frame.Image://frame.JPEGBytes:
+			//case <-ctx.Done():
+			//	return
+			default:
+   				 // Drop frame if motion tracking is busy.
 			}
 
 			// Virtual camera has its own channel.
@@ -169,7 +174,14 @@ func (w *FrameProcessingWorker) previewWorker(
 			if !ok {
 				return
 			}
-
+			////preview logic withut goroutines
+            if err := w.preview.ShowFrame(frame); err != nil {
+                log.Println("preview:", err)
+            }
+			////
+			
+			//LOGIC for preview Timeout 
+			/*
 			done := make(chan error, 1)
 
 			// Run ShowFrame in another goroutine - this needed for timeout - if ShowFrame freez - code continue to work.
@@ -194,7 +206,7 @@ func (w *FrameProcessingWorker) previewWorker(
 					// Note: you'll need standard control flow variables if you intend 
 					// to 'return' or 'break' the outer loop from here.
 				}
-			}
+			}*/
 
 			/*
 			select {
@@ -376,6 +388,84 @@ func (w *FrameProcessingWorker) motionTrackerWorker(
 			//done := make(chan bool, 1)
 
 			// Run ShowFrame in another goroutine - this needed for timeout - if ShowFrame freez - code continue to work.
+			//TODO for this logic need to test without goroutines - this used for timeout - but need to use timer instead
+			/*
+			timer := time.NewTimer(1 * time.Second)
+			defer timer.Stop()
+
+			for {
+				// Reset the timer at the start of every iteration
+				if !timer.Stop() {
+					select {
+					case <-timer.C:
+					default:
+					}
+				}
+				timer.Reset(1 * time.Second)
+
+				select {
+				case <-cancelCtx.Done():
+					isMoving, err := w.faceMotion.TrackMovement(frame)
+
+					//log.Println("face is move:  ", isMoving)
+
+					if err != nil {
+					//	continue
+						log.Println("error to track face motion:  ", err)
+					}
+
+					chanTrackingResponseDTO <- trackingResponseDTO{
+						isMoving: isMoving,
+						//face:     matchedFace,
+						err:      err,
+					}
+
+					timeoutCtx, cancel := context.WithTimeout(cancelCtx, previewTimeout)
+					defer cancel() // Automatically cleans up no matter which case matches
+
+					select {
+					case trackMove := <-chanTrackingResponseDTO:
+						if trackMove.err != nil { 
+							//log.Println("recording:", err)
+							log.Println("preview:", trackMove.err)
+							continue
+						}
+
+						// ✅ FIXED: Pure non-blocking send. No read operations on send-only channel.
+						select {
+						case chanFaceMotionResultChan <- motiontracker.MotionResult{
+							IsMoving: trackMove.isMoving,
+							//Face:     out.face,
+						}:
+							//log.Println("event caught before send event to side button")
+						
+						default:
+							// If the "Face detect" button loop hasn't started yet or is full,
+							// it hits this default case and drops the frame gracefully so the 
+							// main camera/recording loop never freezes.
+
+							log.Println("chanFaceMotionResultChan is full or UI loop is inactive - frame dropped")
+						}
+					case <-timeoutCtx.Done():
+						if errors.Is(timeoutCtx.Err(), context.DeadlineExceeded) {
+							log.Println("preview timeout - skip current job")
+						} else {
+							//log.Println("recording worker stopped")
+							log.Println("preview worker stopped")
+							return
+							// Note: you'll need standard control flow variables if you intend 
+							// to 'return' or 'break' the outer loop from here.
+						}
+					}
+
+				case frame, ok := <-w.faceMotionChan:
+					fmt.Println("Processed:", msg)
+				case <-timer.C:
+					fmt.Println("Iteration took > 1s waiting for data, dropping iteration...")
+					continue // Moves to the next iteration
+				}
+			}
+			*/
 			go func() {
 				isMoving, err := w.faceMotion.TrackMovement(frame)
 

@@ -1,10 +1,10 @@
 package motiontracker
 
 import (
-	"bytes"
+	//"bytes"
 	"fmt"
 	"image"
-	"image/jpeg"
+	//"image/jpeg"
 )
 
 type MotionTracker struct {
@@ -22,12 +22,16 @@ func NewMotionTracker(moveThreshold float64) *MotionTracker {
 	}
 }
 
-func (mt *MotionTracker) TrackMovement(frame []byte) (bool, error) {
+func (mt *MotionTracker) TrackMovement(frame image.Image/*[]byte*/) (bool, error) {
 	// Decode JPEG frame.
-	currentFrame, err := jpeg.Decode(bytes.NewReader(frame))
+	//TODO
+	//currentFrame, err := jpeg.Decode(bytes.NewReader(frame))
+	currentFrame := frame
+
+	/*
 	if err != nil {
 		return false, fmt.Errorf("decode frame: %w", err)
-	}
+	}*/
 
 	// First frame.
 	if mt.previousFrame == nil {
