@@ -72,9 +72,9 @@ func (w *FrameProcessingWorker) ConsumeJob(
 	    func() {
 		    w.previewWorker(ctx)
 	    },
-	    func() {
+	    /*func() {
 		    w.recordingWorker(ctx, isMoveDetectChan, moveAnableDetectChan)
-	    },
+	    },*/
 	    func() {
 		    w.motionTrackerWorker(ctx, motionTrackingResultChan)
 		},
