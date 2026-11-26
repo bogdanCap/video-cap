@@ -10,7 +10,7 @@ import (
 	"os/exec"
 	"strconv"
 	"sync"
-	"time"
+	//"time"
 	"image/jpeg"
 	//"log"
 )
@@ -19,11 +19,12 @@ type CSICamera struct {
 	cmd    *exec.Cmd
 	reader *bufio.Reader
 	stdout io.ReadCloser
+	scanner *bufio.Scanner
 
 	mu sync.Mutex
 
 	fpsFrames int
-    fpsStart  time.Time
+    //fpsStart  time.Time
 }
 
 func NewCSICamera(
@@ -79,17 +80,49 @@ func NewCSICamera(
 		return nil, fmt.Errorf("start CSI camera: %w", err)
 	}
 
+	scanner := bufio.NewScanner(stdout)
+	// Allocate a 2MB max buffer for large JPEG frames
+	scanner.Buffer(make([]byte, 64*1024), 2*1024*1024)
+	scanner.Split(splitJPEG)
+
 	return &CSICamera{
 		cmd:    cmd,
 		reader: bufio.NewReader(stdout),
 		stdout: stdout,
-		fpsStart: time.Now(),
+		//fpsStart: time.Now(),
 	}, nil
+}
+
+// splitJPEG uses SIMD-accelerated bytes.Index instead of byte-by-byte loops
+func splitJPEG(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	start := bytes.Index(data, []byte{0xFF, 0xD8})
+	if start == -1 {
+		if atEOF {
+			return len(data), nil, nil
+		}
+		// Keep last byte in case 0xFF is at the very end of the chunk
+		if len(data) > 0 && data[len(data)-1] == 0xFF {
+			return len(data) - 1, nil, nil
+		}
+		return len(data), nil, nil
+	}
+
+	end := bytes.Index(data[start+2:], []byte{0xFF, 0xD9})
+	if end == -1 {
+		if atEOF {
+			return len(data), nil, nil
+		}
+		return start, nil, nil // Need more data
+	}
+
+	frameEnd := start + 2 + end + 2
+	return frameEnd, data[start:frameEnd], nil
 }
 
 // Read returns one JPEG frame.
 func (c *CSICamera) Read() (FrameProcessDTO, error) {
 
+	/*
 	var frame bytes.Buffer
 
 	// Find JPEG Start Of Image (FF D8).
@@ -131,24 +164,26 @@ func (c *CSICamera) Read() (FrameProcessDTO, error) {
 
 		prev = b
 	}
-
-	// FPS measurement.
-	/*
-    c.fpsFrames++
-
-    elapsed := time.Since(c.fpsStart)
-
-    if elapsed >= time.Second {
-        fps := float64(c.fpsFrames) / elapsed.Seconds()
-
-        log.Printf("CSI Camera FPS: %.2f", fps)
-
-        c.fpsFrames = 0
-        c.fpsStart = time.Now()
-    }*/
+	
+	
 
 	// Clone raw bytes safely so FFmpeg worker can consume them concurrently
-	jpegBytes := bytes.Clone(frame.Bytes())
+	jpegBytes := bytes.Clone(frame.Bytes())*/
+
+	//new
+	if !c.scanner.Scan() {
+		if err := c.scanner.Err(); err != nil {
+			return FrameProcessDTO{}, fmt.Errorf("scan JPEG frame: %w", err)
+		}
+		return FrameProcessDTO{}, io.EOF
+	}
+
+	// Copy exact frame bytes out of scanner's reusable buffer
+	raw := c.scanner.Bytes()
+	jpegBytes := make([]byte, len(raw))
+	copy(jpegBytes, raw)
+	////
+
 
 	// Decode once for Fyne preview
 	img, err := jpeg.Decode(bytes.NewReader(jpegBytes))
