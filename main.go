@@ -19,7 +19,6 @@ import (
 	"github.com/bogdanCap/video-cap/internal/ui"
 	"github.com/bogdanCap/video-cap/internal/worker"
 	"github.com/bogdanCap/video-cap/internal/virtualcamera"
-	"github.com/bogdanCap/video-cap/internal/repository"
 
 
 	//"github.com/jackc/pgx/v5/stdlib"
