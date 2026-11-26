@@ -33,6 +33,7 @@ type CSICamera struct {
     //fpsStart  time.Time
 }
 
+//resolution: Width is divisible by 64 and height is divisible by 16 (e.g., 640x480 or 1280x720)
 func NewCSICamera(
 	width int,
 	height int,
