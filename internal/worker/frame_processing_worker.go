@@ -72,9 +72,9 @@ func (w *FrameProcessingWorker) ConsumeJob(
 	    func() {
 		    w.previewWorker(ctx)
 	    },
-	    func() {
+	    /*func() {
 		    w.recordingWorker(ctx, isMoveDetectChan, moveAnableDetectChan)
-	    },
+	    },*/
 	    func() {
 		    w.motionTrackerWorker(ctx, motionTrackingResultChan)
 		},
@@ -134,6 +134,7 @@ func (w *FrameProcessingWorker) ProduceJob(
 			}
 			w.previewChan <- frame.Image // Always keep the latest frame ready
 
+			/* this logic do not need for csi camera
 			select {
 			case w.recordingChan <- frame.JPEGBytes:
 			//case <-ctx.Done():
@@ -141,7 +142,7 @@ func (w *FrameProcessingWorker) ProduceJob(
 			default:
 				//TODO in this case video can slow down and if it happend need not to drop frame and delete default logic and return case
    				 // Drop frame if recording is busy.
-			}
+			}*/
 
 			select {
 			case w.faceMotionChan <- frame.Image://frame.JPEGBytes:
@@ -153,11 +154,12 @@ func (w *FrameProcessingWorker) ProduceJob(
 
 			// Virtual camera has its own channel.
 			// Don't block the main pipeline if FFmpeg is slow or disabled.
+			/* this logic do not need for csi camera
 			select {
 			case w.virtualCameraChan <- frame.JPEGBytes:
 			default:
 				// Drop frame
-			}
+			}*/
 		}
 	}
 }

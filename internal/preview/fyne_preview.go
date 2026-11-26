@@ -104,7 +104,16 @@ func (p *FynePreview) ShowFrame(
 	// Fast downscale into the back buffer
 	//draw.NearestNeighbor.Scale(dst, dst.Bounds(), img, img.Bounds(), draw.Src, nil)
 	// 3. Fast path for CSI YUV420 (*image.YCbCr) avoids slow interface At() calls
+	/*
 	if ycbcr, ok := img.(*image.YCbCr); ok && ycbcr.SubsampleRatio == image.YCbCrSubsampleRatio420 {
+		dst = scaleYCbCr420ToRGBA(dst, ycbcr)
+	} else {
+		draw.NearestNeighbor.Scale(dst, dst.Bounds(), img, img.Bounds(), draw.Src, nil)
+	}*/
+	// Instant 1:1 memory copy when FFmpeg already scaled to previewWidth x previewHeight RGBA
+	if rgba, ok := img.(*image.RGBA); ok && rgba.Bounds() == dst.Bounds() {
+		copy(dst.Pix, rgba.Pix)
+	} else if ycbcr, ok := img.(*image.YCbCr); ok && ycbcr.SubsampleRatio == image.YCbCrSubsampleRatio420 {
 		dst = scaleYCbCr420ToRGBA(dst, ycbcr)
 	} else {
 		draw.NearestNeighbor.Scale(dst, dst.Bounds(), img, img.Bounds(), draw.Src, nil)

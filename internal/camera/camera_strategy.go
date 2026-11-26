@@ -33,10 +33,20 @@ func (f *CameraStrategy) Create(
     switch config.Type {
 
     case CSIType:
+        /*
         return NewCSICamera(
             config.Width,
             config.Height,
             config.FPS,
+        )*/
+        return NewCSIDualPipeline(
+            "recordings",
+            config.Width,
+            config.Height,
+            config.FPS,
+            320,
+            240,
+            60,
         )
 
     case USBType:
