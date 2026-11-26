@@ -145,6 +145,7 @@ func (c *CSIDualPipeline) Read() (FrameProcessDTO, error) {
 }
 
 func (c *CSIDualPipeline) Stop() error {
+	/*
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -154,6 +155,29 @@ func (c *CSIDualPipeline) Stop() error {
 	if c.ffmpegCmd != nil && c.ffmpegCmd.Process != nil {
 		_ = c.ffmpegCmd.Process.Kill()
 	}
+	return nil*/
+	
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// 1. Stop rpicam-vid cleanly so it flushes remaining frames and closes the pipe (EOF)
+	if c.rpicamCmd != nil && c.rpicamCmd.Process != nil {
+		_ = c.rpicamCmd.Process.Signal(os.Interrupt)
+		_ = c.rpicamCmd.Wait()
+		c.rpicamCmd = nil
+	}
+
+	// 2. Wait for FFmpeg to receive EOF, flush the remaining frames, and finalize the MP4
+	if c.ffmpegCmd != nil {
+		_ = c.ffmpegCmd.Wait()
+		c.ffmpegCmd = nil
+	}
+
+	if c.stdout != nil {
+		_ = c.stdout.Close()
+		c.stdout = nil
+	}
+
 	return nil
 }
 
