@@ -23,14 +23,13 @@ type MirrorImage struct {
 
 // At overrides the pixel coordinate lookup to create a mirror effect.
 func (m MirrorImage) At(x, y int) color.Color {
-	return m.At(x, y)
+	//return m.At(x, y)
 	
-	//bounds := m.Bounds()
-	// Reverse the X coordinate relative to the image boundaries
-	//flippedX := bounds.Max.X - 1 - (x - bounds.Min.X)
-	
-	//flippedX := m.cachedBound.Max.X - 1 - (x - m.cachedBound.Min.X)
-	//return m.At(flippedX, y)
+	bounds := m.Image.Bounds()
+
+    mirroredX := bounds.Min.X + bounds.Max.X - 1 - x
+
+    return m.Image.At(mirroredX, y)
 }
 
 type FynePreview struct {
@@ -42,7 +41,7 @@ type FynePreview struct {
 }
 
 const (
-	previewWidth = 640
+	previewWidth = 480//640
 	previewHeight = 360
 )
 
@@ -152,6 +151,15 @@ func (p *FynePreview) ShowFrame(
 
 	// Fast downscale into the back buffer
 	draw.NearestNeighbor.Scale(dst, dst.Bounds(), img, img.Bounds(), draw.Src, nil)
+	/* this need if preview resolution with incorrect ratio
+	draw.BiLinear.Scale(
+		dst, 
+		dst.Bounds(),
+		 img, 
+		 img.Bounds(),
+		draw.Src, 
+		nil,
+	)*/
 
 	// Swap buffer pointer on the Fyne UI thread
 	fyne.Do(func() {

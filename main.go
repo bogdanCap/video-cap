@@ -19,10 +19,12 @@ import (
 	"github.com/bogdanCap/video-cap/internal/ui"
 	"github.com/bogdanCap/video-cap/internal/worker"
 	"github.com/bogdanCap/video-cap/internal/virtualcamera"
+	"github.com/bogdanCap/video-cap/internal/repository"
 
-	"github.com/jackc/pgx/v5/stdlib"
-	"github.com/pressly/goose/v3"
-	"github.com/jackc/pgx/v5/pgxpool"
+
+	//"github.com/jackc/pgx/v5/stdlib"
+	//"github.com/pressly/goose/v3"
+	//"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 )
 
@@ -45,8 +47,8 @@ const (
 	cameraFPS    = 30
 
 	// Saved video configuration.
-	recordingWidth  = 1024//1024 //1920
-	recordingHeight = 768//720 //1080
+	recordingWidth  = 1024//1280//1024//1024 //1920
+	recordingHeight = 720//768//768//720 //1080
 
 	// Directory for MP4 files.
 	recordingDir = "recordings"
@@ -69,32 +71,46 @@ func main() {
 	// Load .env file if present (ignore error if running with system env vars)
 	_ = godotenv.Load()
 
-	/*
 	dbURL := os.Getenv("DATABASE_URL")
 	// 2. Parse the config and/or pool settings
+	/*
 	poolConfig, err := pgxpool.ParseConfig(dbURL)
 	if err != nil {
 		log.Fatalf("Unable to parse DATABASE_URL: %v", err)
-	}
+	}*/
 
 	// Optional: Adjust pool settings
 	// poolConfig.MaxConns = 10
 	// poolConfig.MinConns = 2
 
+	/*
 	// 3. Create the connection pool
 	dbPool, err := pgxpool.NewWithConfig(ctx, poolConfig)
 
 	if err != nil {
 		panic(err)
+	}*/
+
+	//defer dbPool.Close()
+
+	// 4. Verify the connection
+	//if err := dbPool.Ping(ctx); err != nil {
+	//	log.Fatalf("Unable to ping database: %v", err)
+	//}
+
+	dbPool, dbPoolError := repository.OpenPool(ctx, dbURL)
+
+	if dbPoolError != nil {
+		panic(dbPoolError)
 	}
 
 	defer dbPool.Close()
 
 	// 4. Verify the connection
+	/*
 	if err := dbPool.Ping(ctx); err != nil {
 		log.Fatalf("Unable to ping database: %v", err)
-	}
-	
+
 	// 1. Intercept CLI migration commands before starting Fyne
 	if len(os.Args) > 1 && os.Args[1] == "migrate" {
 		command := "up"
@@ -104,7 +120,7 @@ func main() {
 			args = os.Args[3:]
 		}
 
-		if err := runMigration(ctx, dbPool, command, args...); err != nil {
+		if err := repository.RunMigration(ctx, dbPool, command, args...); err != nil {
 			log.Fatalf("Migration failed: %v", err)
 		}
 		return // Exit without opening the Fyne window
@@ -308,6 +324,7 @@ func xmlEscape(s string) string {
 }
 
 //TODO move to separate service
+/*
 func runMigration(
 	ctx context.Context,
 	pool *pgxpool.Pool,
@@ -330,4 +347,4 @@ func runMigration(
 		"migrations", 
 		args...
 	)
-}
+}*/

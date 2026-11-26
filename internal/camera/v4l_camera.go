@@ -93,9 +93,11 @@ func (c *V4LCamera) Read() (FrameProcessDTO, error) {
 	}
 
 	// Clone raw bytes safely so FFmpeg worker can consume them concurrently
-	jpegBytes := bytes.Clone(frame[:n])
+	//jpegBytes := bytes.Clone(frame[:n])
+	jpegBytes := frame[:n]
 
 	// Decode once for Fyne preview
+	//img, err := jpeg.Decode(bytes.NewReader(jpegBytes))
 	img, err := jpeg.Decode(bytes.NewReader(jpegBytes))
 	if err != nil {
 		return FrameProcessDTO{}, fmt.Errorf("decode JPEG frame: %w", err)

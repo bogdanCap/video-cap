@@ -102,3 +102,22 @@ func (r *FaceRepository) SaveEmbedding(
 
     return id, nil
 }
+
+/*usage
+err := recordingRepo.Create(ctx, pool, rec)
+
+// 2. Multi-table atomic transaction (passes pgx.Tx)
+err := pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
+	if err := recordingRepo.Create(ctx, tx, rec); err != nil {
+		return err
+	}
+	return detectionRepo.CreateBatch(ctx, tx, events)
+})
+
+db DBTX - this help to use one interface in 2 different usage 
+*/
+/*
+func (r *FaceRepository) Create(ctx context.Context, db DBTX, rec model.RecordingMeta) error {
+	_, err := db.Exec(ctx, `INSERT INTO recordings ...`, rec)
+	return err
+}*/
