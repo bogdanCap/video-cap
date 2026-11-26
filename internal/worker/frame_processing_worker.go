@@ -132,6 +132,7 @@ func (w *FrameProcessingWorker) ProduceJob(
 			default:
 				// Drop preview frame.
 			}
+			w.previewChan <- frame.Image // Always keep the latest frame ready
 
 			select {
 			case w.recordingChan <- frame.JPEGBytes:
