@@ -49,30 +49,7 @@ func NewFynePreview(
 	//width int,
 	//height int,
 ) *FynePreview {
-	/*
-	buf := image.NewRGBA(
-		image.Rect(0, 0, previewWidth, previewHeight),
-	)
 
-	//Initialize UI elements
-	img := canvas.NewImageFromImage(buf)
-
-	//// Preserves the aspect ratio
-	img.FillMode = canvas.ImageFillContain
-
-	// 3. PIXELS stops blurry linear filtering (retains crisp raw video frames)
-	img.ScaleMode = canvas.ImageScalePixels
-
-	// Enforce a minimum base interface dimension
-	img.SetMinSize(fyne.NewSize(float32(previewWidth), float32(previewHeight)))
-
-	content := container.NewWithoutLayout(img)
-
-	return &FynePreview{
-		image:     img,
-		container: content,
-		buf: buf,
-	}*/
 
 	buf0 := image.NewRGBA(image.Rect(0, 0, previewWidth, previewHeight))
 	buf1 := image.NewRGBA(image.Rect(0, 0, previewWidth, previewHeight))
@@ -99,46 +76,6 @@ func (p *FynePreview) Widget() fyne.CanvasObject {
 func (p *FynePreview) ShowFrame(
 	img image.Image/*[]byte*/,
 ) error {
-	//DOTO trhis already done in camera worker and do not need to di it twice
-	/*
-	img, err := jpeg.Decode(
-		bytes.NewReader(frame),
-	)
-
-	if err != nil {
-		return fmt.Errorf(
-			"decode JPEG frame: %w",
-			err,
-		)
-	}*/
-
-	
-
-	// 2. Downscale 1280x720 -> 640x360 directly into the reused buffer
-	// Using draw.Src skips alpha blending for maximum speed
-	/*
-	draw.NearestNeighbor.Scale(p.buf, p.buf.Bounds(), frame, frame.Bounds(), draw.Src, nil)
-
-
-	// Fyne UI update.
-	fyne.Do(func() {
-		p.image.Image = p.buf//img
-		//p.image.Image = flippedRGBA
-
-		/*
-		if targetSize := p.container.Size(); p.image.Size() != targetSize {
-			p.image.Resize(targetSize)
-		}*/
-	/*
-		p.image.Resize(
-			p.container.Size(),
-		)
-
-		p.image.Refresh()
-	})*/
-
-
-
 	if img == nil {
 		log.Println("img is nil and preview do not works")
 
