@@ -40,6 +40,11 @@ func (w *VirtualCameraWorker) Run(
 				return
 			}
 
+			//in case when using CSIDualPipeline this goroutines do not need and frame is empty - recording going directly with rpicam-vid
+			if len(frame) == 0 {
+				continue // Skips processing below and moves to the next frame
+			}
+
 			w.mu.Lock()
 
 			if w.enabled {

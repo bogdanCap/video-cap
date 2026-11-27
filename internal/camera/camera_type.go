@@ -9,6 +9,7 @@ type CameraType int
 const (
 	USBType CameraType = iota + 1 // 1
 	CSIType                       // 2
+	CSIDualType                   // 3 (in this case csi camera record and preview pipline going on rpicam-vid level)
 )
 
 // 3. Implement fmt.Stringer for readable string output
@@ -18,13 +19,15 @@ func (i CameraType) String() string {
 		return "usb"
 	case CSIType:
 		return "sci"
+	case CSIDualType:
+		return "sci-dual"
 	default:
 		return "unknown"
 	}
 }
 
-func (i CameraType) IsValid() bool {
-	return i == USBType || i == CSIType
+func (t CameraType) IsValid() bool {
+	return t == USBType || t == CSIType || t == CSIDualType
 }
 
 // ParseInterfaceType safely converts an int from config into InterfaceType

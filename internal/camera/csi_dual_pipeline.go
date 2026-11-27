@@ -3,6 +3,7 @@ package camera
 import (
 	"fmt"
 	"image"
+	"time"
 	"io"
 	"os"
 	"os/exec"
@@ -10,6 +11,16 @@ import (
 	"strconv"
 	"sync"
 )
+
+type CSIDualConfig struct {
+	outputDir string
+	recWidth,
+	recHeight int
+	fps uint32
+	previewWidth,
+	previewHeight int
+	chunkSeconds int
+}
 
 type CSIDualPipeline struct {
 	rpicamCmd *exec.Cmd
@@ -24,17 +35,13 @@ type CSIDualPipeline struct {
 }
 
 func NewCSIDualPipeline(
-	outputDir string,
-	recWidth, recHeight int,
-	fps uint32,
-	previewW, previewH int,
-	chunkSeconds int,
+	config CSIDualConfig,
 ) (*CSIDualPipeline, error) {
-	if recWidth%64 != 0 || recHeight%16 != 0 {
+	if config.recWidth%64 != 0 || config.recHeight%16 != 0 {
 		return nil, fmt.Errorf("recWidth must be divisible by 64 and recHeight by 16 for zero-padding YUV420")
 	}
 
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(config.outputDir, 0755); err != nil {
 		return nil, fmt.Errorf("create output dir: %w", err)
 	}
 
@@ -45,9 +52,9 @@ func NewCSIDualPipeline(
 		"-n",
 		"--flush",
 		"--codec", "yuv420",
-		"--width", strconv.Itoa(recWidth),
-		"--height", strconv.Itoa(recHeight),
-		"--framerate", strconv.FormatUint(uint64(fps), 10),
+		"--width", strconv.Itoa(config.recWidth),
+		"--height", strconv.Itoa(config.recHeight),
+		"--framerate", strconv.FormatUint(uint64(config.fps), 10),
 		"-o", "-",
 	)
 
@@ -60,7 +67,21 @@ func NewCSIDualPipeline(
 	// 2. FFmpeg reads rpicam-vid's stdout directly and splits into:
 	//    Output 1: 1-minute MP4 segments on disk
 	//    Output 2: Lightweight RGBA frames on pipe:1 for FynePreview
-	segmentPattern := filepath.Join(outputDir, "video_%Y%m%d_%H%M%S.mp4")
+
+	/*
+	*/
+	timestamp := time.Now().Format(
+		"20060102_150405",
+	)
+
+	segmentPattern := filepath.Join(
+		config.outputDir,
+		fmt.Sprintf(
+			"video_%s.mp4",
+			timestamp,
+		),
+	)
+	//segmentPattern := filepath.Join(config.outputDir, "video_%Y%m%d_%H%M%S.mp4")
 
 	/*
 	ffmpegCmd := exec.Command(
@@ -96,25 +117,27 @@ func NewCSIDualPipeline(
 		// --- INPUT: Raw YUV420 stream from rpicam-vid (pipe:0 / stdin) ---
 		"-f", "rawvideo",
 		"-pix_fmt", "yuv420p",
-		"-s", fmt.Sprintf("%dx%d", recWidth, recHeight),
-		"-r", strconv.FormatUint(uint64(fps), 10),
+		"-s", fmt.Sprintf("%dx%d", config.recWidth, config.recHeight),
+		"-r", strconv.FormatUint(uint64(config.fps), 10),
 		"-i", "pipe:0",
 
 		// --- OUTPUT 1: 1-minute crash-safe MP4 segments on disk ---
 		"-c:v", "libx264",
 		"-preset", "ultrafast",
 		"-tune", "zerolatency",
-		"-g", strconv.FormatUint(uint64(fps), 10), // Keyframe every 1 second
+		"-g", strconv.FormatUint(uint64(config.fps), 10), // Keyframe every 1 second
 		"-pix_fmt", "yuv420p",
 		"-f", "segment",
-		"-segment_time", strconv.Itoa(chunkSeconds), // 60 for 1-minute chunks
-		"-segment_format_options", "movflags=+frag_keyframe+empty_moov+default_base_moof",
+		"-segment_time", strconv.Itoa(config.chunkSeconds), // 60 for 1-minute chunks
+		"-segment_format", "mp4",
+		//"-segment_format_options", "movflags=+frag_keyframe+empty_moov+default_base_moof",
+		"-segment_format_options", "movflags=+faststart",
 		"-strftime", "1",
 		"-reset_timestamps", "1",
 		segmentPattern,
 
 		// --- OUTPUT 2: Lightweight RGBA preview stream to Go (pipe:1 / stdout) ---
-		"-vf", fmt.Sprintf("scale=%d:%d,fps=20", previewW, previewH),
+		"-vf", fmt.Sprintf("scale=%d:%d,fps=20", config.previewWidth, config.previewHeight),
 		"-f", "rawvideo",
 		"-pix_fmt", "rgba",
 		"pipe:1",
@@ -150,9 +173,9 @@ func NewCSIDualPipeline(
 		rpicamCmd: rpicamCmd,
 		ffmpegCmd: ffmpegCmd,
 		stdout:    ffmpegOut,
-		previewW:  previewW,
-		previewH:  previewH,
-		frameSize: previewW * previewH * 4, // 4 bytes per pixel (RGBA)
+		previewW:  config.previewWidth,
+		previewH:  config.previewHeight,
+		frameSize: config.previewWidth * config.previewHeight * 4, // 4 bytes per pixel (RGBA)
 	}, nil
 }
 
@@ -244,6 +267,22 @@ func (c *CSIDualPipeline) Stop() error {
 	// FFmpeg flushes the last frames, writes the MP4 trailer, and exits in ~100ms.
 	if ffmpeg != nil {
 		_ = ffmpeg.Wait()
+	}
+
+	//TODO check this - this delete empty video
+	// At the very end of Stop(), right after ffmpeg.Wait():
+	entries, err := os.ReadDir("recordings")
+	if err == nil {
+		for _, entry := range entries {
+			if entry.IsDir() || filepath.Ext(entry.Name()) != ".mp4" {
+				continue
+			}
+			info, err := entry.Info()
+			// Any MP4 under 10 KB has zero playable video frames (empty stub)
+			if err == nil && info.Size() < 10*1024 {
+				_ = os.Remove(filepath.Join("recordings", entry.Name()))
+			}
+		}
 	}
 
 	return nil
