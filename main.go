@@ -50,11 +50,14 @@ const (
 	recordingWidth  = 1024//1280//1024//1024 //1920
 	recordingHeight = 720//768//768//720 //1080
 
+	//4:3 (Standard / Camera sensor): 340 × 255
+	previewWidth = 340
+	previewHeight = 255
+
 	// Directory for MP4 files.
 	recordingDir = "recordings"
 
-	// Each file is 30 seconds.
-	chunkDuration = 30 * time.Second
+	chunkDuration = 60 * time.Second
 
 	//cascadePath = "model/haarcascade_frontalface_default.xml"
 	cascadePath = "model/pigo_facefinder"
@@ -155,6 +158,10 @@ func main() {
 			Width:       recordingWidth,//cameraWidth,
 			Height:      recordingHeight,//cameraHeight,
 			FPS:         cameraFPS,
+			PreviewWidth: previewWidth,
+			PreviewHeight: previewHeight,
+
+			ChunkSeconds: int(chunkDuration),
 		},
 	)
 
@@ -202,12 +209,17 @@ func main() {
 	// Recorder
 	// ----------------------------------------
 
+	//TODO for ffmpeg need to create FFmpegConfig
+	ffmpegConfig := recording.FFmpegConfig{
+		OutputDir: recordingDir,
+		Width: recordingWidth,
+		Height: recordingHeight,
+		Fps: cameraFPS,
+		ChunkDuration: chunkDuration,
+		CameraType: camera.USBType,
+	}
 	recorder := recording.NewFFmpegRecorder(
-		recordingDir,
-		recordingWidth,
-		recordingHeight,
-		cameraFPS,
-		chunkDuration,
+		ffmpegConfig,
 	)
 
 	// Camera worker. - read frame by frame from camera
